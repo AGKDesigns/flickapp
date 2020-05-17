@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text style={styles.baseText}>Welcome to Flick App 2</Text>
+      <Text style={styles.baseText}>Welcome to Flick App 2000</Text>
     </View>
   );
 }
