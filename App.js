@@ -41,7 +41,6 @@ const Badge = styled.Image`
 const AppLogo = styled.Image`
   width: 158px;
   height: 74px;
-  align-items: center;
 `;
 
 const BackgroundGlow = styled.Image`
