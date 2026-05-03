@@ -49,18 +49,39 @@ export default function RootLayout() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session) {
+        if (!cancelled) {
+          setSession(data.session);
+          setInitialized(true);
+        }
+        return;
+      }
+
+      // No session yet — sign in anonymously so progress saves immediately.
+      // The user can claim this account later by linking email / OAuth.
+      const { data: anon, error } = await supabase.auth.signInAnonymously();
+      if (cancelled) return;
+      if (error) {
+        console.warn("[supabase] anonymous sign-in failed:", error.message);
+      } else {
+        setSession(anon.session);
+      }
       setInitialized(true);
-    });
+    })();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        setSession(session);
+        if (!cancelled) setSession(session);
       },
     );
 
     return () => {
+      cancelled = true;
       listener.subscription.unsubscribe();
     };
   }, [setSession, setInitialized]);

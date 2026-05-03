@@ -12,6 +12,11 @@ dist/
 web-build/
 expo-env.d.ts
 
+# Supabase CLI local state (generated)
+supabase/.branches/
+supabase/.temp/
+supabase/.gitignore
+
 # Native
 .kotlin/
 *.orig.*
