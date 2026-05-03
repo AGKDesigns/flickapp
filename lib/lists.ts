@@ -171,7 +171,7 @@ export async function fetchWatchedIds(movieIds?: number[]): Promise<Set<number>>
 }
 
 // =========================================================================
-// Tonight picks — top-rated unwatched movies from the user's subscribed lists
+// Tonight picks — top-rated unwatched movies, filtered by vibe
 // =========================================================================
 export type TonightPick = {
   tmdb_id: number;
@@ -180,78 +180,90 @@ export type TonightPick = {
   backdrop_path: string | null;
   vote_average: number;
   release_year: number | null;
-  list_title: string;
 };
 
-type UserListWithMeta = {
-  lists: { id: string; slug: string; title: string };
+export type VibeFilters = {
+  genre_ids?: number[];
+  year_range?: [number, number];
 };
 
-type ItemWithMovie = {
-  list_id: string;
-  movies: {
-    tmdb_id: number;
-    title: string;
-    poster_path: string | null;
-    backdrop_path: string | null;
-    vote_average: number;
-    release_year: number | null;
-  } | null;
+type MovieRow = {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  release_year: number | null;
 };
 
 export async function fetchTonightPicks(
-  listSlugs: string[] | null,
+  filters: VibeFilters,
   limit = 6,
 ): Promise<TonightPick[]> {
-  // Resolve which of the user's subscribed lists match the requested slugs.
-  // If listSlugs is null, pull from every list the user has.
+  // Overshoot the limit so we still have enough after filtering watched.
+  const fetchLimit = Math.max(limit * 5, 30);
+
   let q = supabase
-    .from("user_lists")
-    .select("lists!inner(id, slug, title)");
-  if (listSlugs && listSlugs.length > 0) {
-    q = q.in("lists.slug", listSlugs);
+    .from("movies")
+    .select("tmdb_id, title, poster_path, backdrop_path, vote_average, release_year")
+    .order("vote_average", { ascending: false })
+    .limit(fetchLimit);
+
+  if (filters.genre_ids && filters.genre_ids.length > 0) {
+    q = q.overlaps("genre_ids", filters.genre_ids);
   }
-  const { data: ulRows, error: ulErr } = await q.returns<UserListWithMeta[]>();
-  if (ulErr) throw new Error(`fetchTonightPicks (user_lists): ${ulErr.message}`);
+  if (filters.year_range) {
+    q = q
+      .gte("release_year", filters.year_range[0])
+      .lte("release_year", filters.year_range[1]);
+  }
 
-  const lists = (ulRows ?? []).map((r) => r.lists);
-  if (lists.length === 0) return [];
-
-  const listIdToTitle = new Map(lists.map((l) => [l.id, l.title]));
-  const listIds = lists.map((l) => l.id);
-
-  const { data: items, error: itemsErr } = await supabase
-    .from("list_items")
-    .select(
-      "list_id, movies!inner(tmdb_id, title, poster_path, backdrop_path, vote_average, release_year)",
-    )
-    .in("list_id", listIds)
-    .returns<ItemWithMovie[]>();
-
-  if (itemsErr) throw new Error(`fetchTonightPicks (list_items): ${itemsErr.message}`);
+  const { data, error } = await q.returns<MovieRow[]>();
+  if (error) throw new Error(`fetchTonightPicks: ${error.message}`);
 
   const watched = await fetchWatchedIds().catch(() => new Set<number>());
 
-  const seen = new Map<number, TonightPick>();
-  for (const item of items ?? []) {
-    const m = item.movies;
-    if (!m) continue;
-    if (watched.has(m.tmdb_id)) continue;
-    if (seen.has(m.tmdb_id)) continue;
-    seen.set(m.tmdb_id, {
+  return (data ?? [])
+    .filter((m) => !watched.has(m.tmdb_id))
+    .slice(0, limit)
+    .map((m) => ({
       tmdb_id: m.tmdb_id,
       title: m.title,
       poster_path: m.poster_path,
       backdrop_path: m.backdrop_path,
       vote_average: m.vote_average,
       release_year: m.release_year,
-      list_title: listIdToTitle.get(item.list_id) ?? "",
-    });
-  }
+    }));
+}
 
-  return [...seen.values()]
-    .sort((a, b) => b.vote_average - a.vote_average)
-    .slice(0, limit);
+/**
+ * Curated lists that match a vibe but the user hasn't yet subscribed to.
+ * Used to surface "Track these lists for more" suggestions on Tonight.
+ */
+export async function fetchVibeListSuggestions(
+  slugs: string[] | undefined,
+): Promise<CuratedListSummary[]> {
+  if (!slugs || slugs.length === 0) return [];
+
+  const [allRes, mineRes] = await Promise.all([
+    supabase
+      .from("lists")
+      .select("id, slug, title, description, cover_image, list_items(count)")
+      .in("slug", slugs)
+      .eq("type", "curated")
+      .eq("is_public", true)
+      .returns<ListEmbed[]>(),
+    supabase.from("user_lists").select("list_id"),
+  ]);
+
+  if (allRes.error) throw new Error(`fetchVibeListSuggestions (lists): ${allRes.error.message}`);
+  if (mineRes.error) throw new Error(`fetchVibeListSuggestions (user_lists): ${mineRes.error.message}`);
+
+  const subscribedIds = new Set((mineRes.data ?? []).map((r) => r.list_id));
+
+  return (allRes.data ?? [])
+    .filter((row) => !subscribedIds.has(row.id))
+    .map(shape);
 }
 
 export async function fetchUserListProgress(): Promise<Map<string, number>> {

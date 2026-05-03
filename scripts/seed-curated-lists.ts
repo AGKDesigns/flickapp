@@ -39,6 +39,10 @@ type TMDBMovie = {
   backdrop_path: string | null;
   release_date: string | null;
   vote_average: number;
+  // /discover and /movie/top_rated return genre_ids: number[]
+  // /movie/{id} returns genres: { id, name }[] — normalised below.
+  genre_ids?: number[];
+  genres?: { id: number; name: string }[];
 };
 
 async function tmdb<T>(path: string, params?: Record<string, string | number>): Promise<T> {
@@ -289,6 +293,10 @@ async function seedList(cfg: ListConfig) {
       backdrop_path: m.backdrop_path,
       release_year: m.release_date ? parseInt(m.release_date.slice(0, 4), 10) : null,
       vote_average: Number(m.vote_average.toFixed(1)),
+      genre_ids:
+        m.genre_ids && m.genre_ids.length > 0
+          ? m.genre_ids
+          : (m.genres ?? []).map((g) => g.id),
     }));
     const { error } = await supabase.from("movies").upsert(movieRows, { onConflict: "tmdb_id" });
     if (error) throw new Error(`movies upsert: ${error.message}`);

@@ -15,9 +15,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { GlassCard } from "@/components/glass-card";
 import {
+  addListToUser,
   fetchTonightPicks,
+  fetchVibeListSuggestions,
   markWatched,
   unmarkWatched,
+  type CuratedListSummary,
   type TonightPick,
 } from "@/lib/lists";
 import { posterUrl } from "@/lib/tmdb";
@@ -26,9 +29,11 @@ import { VIBES, type Vibe } from "@/lib/vibes";
 export default function TonightScreen() {
   const [vibeId, setVibeId] = useState<string>("any");
   const [picks, setPicks] = useState<TonightPick[]>([]);
+  const [suggestedLists, setSuggestedLists] = useState<CuratedListSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [watchedSet, setWatchedSet] = useState<Set<number>>(new Set());
+  const [busyListIds, setBusyListIds] = useState<Set<string>>(new Set());
 
   const vibe = VIBES.find((v) => v.id === vibeId) ?? VIBES[0];
 
@@ -38,10 +43,19 @@ export default function TonightScreen() {
       setLoading(true);
       setError(null);
 
-      fetchTonightPicks(vibe.list_slugs, 6)
-        .then((data) => {
+      Promise.all([
+        fetchTonightPicks(
+          { genre_ids: vibe.genre_ids, year_range: vibe.year_range },
+          6,
+        ),
+        fetchVibeListSuggestions(vibe.list_slugs).catch(
+          () => [] as CuratedListSummary[],
+        ),
+      ])
+        .then(([p, s]) => {
           if (cancelled) return;
-          setPicks(data);
+          setPicks(p);
+          setSuggestedLists(s);
           setWatchedSet(new Set());
         })
         .catch((err: Error) => {
@@ -99,6 +113,29 @@ export default function TonightScreen() {
         return next;
       });
       console.warn(`[tonight] toggle failed: ${(err as Error).message}`);
+    }
+  };
+
+  const onTrackList = async (list: CuratedListSummary) => {
+    if (busyListIds.has(list.id)) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    setBusyListIds((s) => new Set(s).add(list.id));
+    // Optimistically remove the suggestion
+    setSuggestedLists((curr) => curr.filter((l) => l.id !== list.id));
+
+    try {
+      await addListToUser(list.id);
+    } catch (err) {
+      // Revert
+      setSuggestedLists((curr) => [...curr, list]);
+      console.warn(`[tonight] track list failed: ${(err as Error).message}`);
+    } finally {
+      setBusyListIds((s) => {
+        const next = new Set(s);
+        next.delete(list.id);
+        return next;
+      });
     }
   };
 
@@ -225,9 +262,7 @@ export default function TonightScreen() {
                     marginTop: 6,
                   }}
                 >
-                  {vibe.id === "any"
-                    ? "Add a list to get started"
-                    : `No ${vibe.label.toLowerCase()} picks`}
+                  You&apos;ve seen them all
                 </Text>
                 <Text
                   style={{
@@ -238,30 +273,8 @@ export default function TonightScreen() {
                     marginTop: 8,
                   }}
                 >
-                  {vibe.id === "any"
-                    ? "Browse Discover and add curated lists. Suggestions appear here."
-                    : "Try a different vibe, or add a matching list from Discover."}
+                  Try a different vibe.
                 </Text>
-                <Pressable
-                  onPress={() => router.push("/explore")}
-                  className="mt-5 items-center rounded-card py-3"
-                  style={{
-                    backgroundColor: "rgba(0,229,255,0.18)",
-                    borderWidth: 0.5,
-                    borderColor: "rgba(0,229,255,0.45)",
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontFamily: "Inter_600SemiBold",
-                      fontSize: 14,
-                      color: "#5cf0ff",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    Browse Discover
-                  </Text>
-                </Pressable>
               </GlassCard>
             ) : (
               picks.map((pick) => (
@@ -280,6 +293,37 @@ export default function TonightScreen() {
               ))
             )}
           </View>
+
+          {suggestedLists.length > 0 ? (
+            <View className="mt-4 px-5">
+              <Text
+                style={{
+                  fontFamily: "Inter_600SemiBold",
+                  fontSize: 12,
+                  letterSpacing: 1.5,
+                  color: "rgba(245,241,255,0.55)",
+                  textTransform: "uppercase",
+                  marginBottom: 10,
+                }}
+              >
+                Track for more {vibe.label.toLowerCase()}
+              </Text>
+              {suggestedLists.map((list) => (
+                <SuggestedListCard
+                  key={list.id}
+                  list={list}
+                  busy={busyListIds.has(list.id)}
+                  onTrack={() => onTrackList(list)}
+                  onOpen={() =>
+                    router.push({
+                      pathname: "/list/[slug]",
+                      params: { slug: list.slug },
+                    })
+                  }
+                />
+              ))}
+            </View>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -360,7 +404,7 @@ function PickCard({
         }}
       >
         <View
-          className="h-32 w-22 overflow-hidden rounded-card"
+          className="h-32 overflow-hidden rounded-card"
           style={{
             width: 88,
             borderWidth: 0.5,
@@ -382,44 +426,30 @@ function PickCard({
           )}
         </View>
 
-        <View className="flex-1 justify-between py-1">
-          <View>
-            <Text
-              style={{
-                fontFamily: "Inter_500Medium",
-                fontSize: 11,
-                color: "rgba(245,241,255,0.5)",
-                letterSpacing: 0.3,
-              }}
-              numberOfLines={1}
-            >
-              From {pick.list_title}
-            </Text>
-            <Text
-              style={{
-                fontFamily: "Orbitron_700Bold",
-                fontSize: 17,
-                lineHeight: 22,
-                letterSpacing: 0.3,
-                color: "#f5f1ff",
-                marginTop: 4,
-              }}
-              numberOfLines={2}
-            >
-              {pick.title}
-            </Text>
-            <Text
-              style={{
-                fontFamily: "Inter_500Medium",
-                fontSize: 12,
-                color: "#ffd166",
-                marginTop: 4,
-              }}
-            >
-              ★ {pick.vote_average.toFixed(1)}
-              {pick.release_year ? ` · ${pick.release_year}` : ""}
-            </Text>
-          </View>
+        <View className="flex-1 justify-center py-1">
+          <Text
+            style={{
+              fontFamily: "Orbitron_700Bold",
+              fontSize: 17,
+              lineHeight: 22,
+              letterSpacing: 0.3,
+              color: "#f5f1ff",
+            }}
+            numberOfLines={2}
+          >
+            {pick.title}
+          </Text>
+          <Text
+            style={{
+              fontFamily: "Inter_500Medium",
+              fontSize: 12,
+              color: "#ffd166",
+              marginTop: 4,
+            }}
+          >
+            ★ {pick.vote_average.toFixed(1)}
+            {pick.release_year ? ` · ${pick.release_year}` : ""}
+          </Text>
         </View>
 
         <Pressable
@@ -451,3 +481,109 @@ function PickCard({
     </Pressable>
   );
 }
+
+function SuggestedListCard({
+  list,
+  busy,
+  onTrack,
+  onOpen,
+}: {
+  list: CuratedListSummary;
+  busy: boolean;
+  onTrack: () => void;
+  onOpen: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onOpen}
+      android_ripple={{ color: "rgba(0,229,255,0.18)" }}
+      style={({ pressed }) => ({
+        transform: [{ scale: pressed ? 0.99 : 1 }],
+      })}
+      className="mb-3 overflow-hidden rounded-card"
+    >
+      <View
+        className="flex-row gap-3 bg-night-900 p-3"
+        style={{
+          borderWidth: 0.5,
+          borderColor: "rgba(0,229,255,0.25)",
+        }}
+      >
+        <View
+          className="h-16 w-24 overflow-hidden rounded-card"
+          style={{
+            borderWidth: 0.5,
+            borderColor: "rgba(255,255,255,0.08)",
+          }}
+        >
+          {list.cover_url ? (
+            <Image
+              source={{ uri: list.cover_url }}
+              contentFit="cover"
+              style={{ flex: 1 }}
+              transition={150}
+            />
+          ) : (
+            <LinearGradient
+              colors={["#221152", "#170933", "#050506"]}
+              style={{ flex: 1 }}
+            />
+          )}
+        </View>
+
+        <View className="flex-1 justify-center">
+          <Text
+            style={{
+              fontFamily: "Orbitron_700Bold",
+              fontSize: 14,
+              lineHeight: 18,
+              letterSpacing: 0.3,
+              color: "#f5f1ff",
+            }}
+            numberOfLines={1}
+          >
+            {list.title}
+          </Text>
+          <Text
+            style={{
+              fontFamily: "Inter_500Medium",
+              fontSize: 11,
+              color: "rgba(245,241,255,0.55)",
+              marginTop: 2,
+            }}
+          >
+            {list.total} movies
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation();
+            onTrack();
+          }}
+          disabled={busy}
+          hitSlop={8}
+          className="self-center rounded-full px-3 py-1.5"
+          style={({ pressed }) => ({
+            backgroundColor: "rgba(0,229,255,0.18)",
+            borderWidth: 0.5,
+            borderColor: "rgba(0,229,255,0.5)",
+            opacity: pressed || busy ? 0.6 : 1,
+          })}
+        >
+          <Text
+            style={{
+              fontFamily: "Inter_600SemiBold",
+              fontSize: 12,
+              color: "#5cf0ff",
+              letterSpacing: 0.3,
+            }}
+          >
+            + Track
+          </Text>
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
+
