@@ -20,7 +20,7 @@ import { useFonts } from "expo-font";
 import { useEffect } from "react";
 import "react-native-reanimated";
 
-import { supabase } from "@/lib/supabase";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { useSessionStore } from "@/store/session";
 
 SplashScreen.preventAutoHideAsync();
@@ -44,6 +44,11 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setInitialized(true);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setInitialized(true);
