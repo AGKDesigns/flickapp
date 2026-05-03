@@ -17,17 +17,23 @@ export function ListCard({ title, image, watched, total, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      android_ripple={{ color: "#ff2e93", borderless: false }}
-      className="mx-5 mt-5 overflow-hidden rounded-3xl"
+      android_ripple={{ color: "rgba(255,46,147,0.25)", borderless: false }}
+      className="mx-5 mt-4"
       style={({ pressed }) => ({
-        transform: [{ scale: pressed ? 0.98 : 1 }],
-        shadowColor: "#ff2e93",
-        shadowOpacity: 0.45,
-        shadowRadius: 18,
-        shadowOffset: { width: 0, height: 8 },
+        transform: [{ scale: pressed ? 0.985 : 1 }],
       })}
     >
-      <View className="h-56 overflow-hidden rounded-3xl border border-magenta-500/40 bg-night-800">
+      <View
+        className="h-56 overflow-hidden rounded-sheet bg-night-900"
+        style={{
+          borderWidth: 0.5,
+          borderColor: "rgba(255,255,255,0.08)",
+          shadowColor: complete ? "#00e5ff" : "#ff2e93",
+          shadowOpacity: 0.35,
+          shadowRadius: 22,
+          shadowOffset: { width: 0, height: 10 },
+        }}
+      >
         <Image
           source={image}
           contentFit="cover"
@@ -35,36 +41,48 @@ export function ListCard({ title, image, watched, total, onPress }: Props) {
         />
         <LinearGradient
           colors={[
-            "rgba(7, 0, 20, 0.0)",
-            "rgba(13, 4, 33, 0.55)",
-            "rgba(255, 46, 147, 0.7)",
+            "rgba(5,5,6,0.0)",
+            "rgba(5,5,6,0.55)",
+            "rgba(5,5,6,0.95)",
           ]}
           locations={[0, 0.55, 1]}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          end={{ x: 0, y: 1 }}
           style={{ position: "absolute", inset: 0 }}
         />
+
         <View className="absolute inset-0 justify-end p-5">
           <Text
-            className="text-right text-white"
-            style={{ fontFamily: "Orbitron_900Black", fontSize: 26, letterSpacing: 1.5 }}
+            style={{
+              fontFamily: "Orbitron_700Bold",
+              fontSize: 24,
+              letterSpacing: 0.5,
+              color: "#f5f1ff",
+            }}
             numberOfLines={2}
           >
-            {title.toUpperCase()}
+            {title}
           </Text>
 
-          <View className="mt-3 flex-row items-center justify-end gap-2">
+          <View className="mt-2 flex-row items-center gap-2">
             <Text
-              className="text-cyan-400"
-              style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 13 }}
+              style={{
+                fontFamily: "Inter_500Medium",
+                fontSize: 13,
+                color: "rgba(245,241,255,0.75)",
+              }}
             >
-              {watched.toString().padStart(2, "0")} / {total} WATCHED
+              {watched} of {total} watched
             </Text>
             {complete ? (
-              <View className="rounded-md border border-sunset-400 bg-sunset-400/20 px-2 py-0.5">
+              <View className="rounded-full bg-cyan-500/20 px-2 py-0.5">
                 <Text
-                  style={{ fontFamily: "Orbitron_700Bold", fontSize: 10 }}
-                  className="text-sunset-400"
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                    color: "#5cf0ff",
+                  }}
                 >
                   COMPLETE
                 </Text>
@@ -72,7 +90,10 @@ export function ListCard({ title, image, watched, total, onPress }: Props) {
             ) : null}
           </View>
 
-          <View className="mt-2 h-1.5 overflow-hidden rounded-full bg-night-950/60">
+          <View
+            className="mt-3 h-1 overflow-hidden rounded-full"
+            style={{ backgroundColor: "rgba(255,255,255,0.10)" }}
+          >
             <LinearGradient
               colors={["#00e5ff", "#ff2e93"]}
               start={{ x: 0, y: 0 }}

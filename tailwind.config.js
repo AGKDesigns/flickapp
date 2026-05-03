@@ -8,36 +8,42 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Deep midnight ground
+        // Cinematic dark ground — no pure #000 (OLED smear)
         night: {
-          950: "#070014",
-          900: "#0d0421",
-          800: "#170933",
-          700: "#221152",
-          600: "#2e1a6b",
+          950: "#050506",
+          900: "#0a0a0c",
+          800: "#101015",
+          700: "#16161e",
+          600: "#1d1d28",
         },
-        // Hot magenta — primary brand neon
+        // Translucent surface tones (use with /n opacity in classes)
+        surface: {
+          DEFAULT: "rgba(255,255,255,0.05)",
+          raised: "rgba(255,255,255,0.07)",
+          high: "rgba(255,255,255,0.10)",
+        },
+        // Synthwave accents — used for glow + state, not as solid backgrounds
         magenta: {
           500: "#ff2e93",
           400: "#ff5fa8",
           300: "#ff8fc1",
         },
-        // Electric cyan — secondary accent / progress
         cyan: {
           500: "#00e5ff",
           400: "#5cf0ff",
         },
-        // Sunset warmth — used in gradients / streaks
         sunset: {
           500: "#ff5b3c",
           400: "#ffd166",
         },
-        // Text
+        // Foreground / text scale
         ink: {
-          50: "#f5e9ff",
-          200: "#cdb8e8",
-          400: "#a795c8",
-          600: "#6b5c8a",
+          50: "#f5f1ff",
+          100: "#e6dff5",
+          200: "#c8c1d9",
+          400: "#8a849c",
+          600: "#5a5567",
+          800: "#2a2731",
         },
       },
       fontFamily: {
@@ -49,9 +55,12 @@ module.exports = {
         mono: ["JetBrainsMono_400Regular"],
         monoBold: ["JetBrainsMono_700Bold"],
       },
-      boxShadow: {
-        neon: "0 0 24px rgba(255, 46, 147, 0.6)",
-        "neon-cyan": "0 0 24px rgba(0, 229, 255, 0.55)",
+      borderWidth: {
+        hairline: "0.5",
+      },
+      borderRadius: {
+        card: "16px",
+        sheet: "24px",
       },
     },
   },

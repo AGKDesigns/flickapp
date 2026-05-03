@@ -40,62 +40,71 @@ const LISTS = [
 export default function ListsScreen() {
   return (
     <View className="flex-1 bg-night-950">
-      {/* Sunset glow at top */}
       <LinearGradient
-        colors={["#ff2e93", "#ff5b3c", "#170933", "#070014"]}
+        colors={["#ff2e93", "#ff5b3c", "#170933", "#050506"]}
         locations={[0, 0.18, 0.55, 1]}
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
-          height: 380,
-          opacity: 0.55,
+          height: 420,
+          opacity: 0.45,
         }}
       />
 
       <SafeAreaView edges={["top"]} className="flex-1">
-        <View className="flex-row items-center justify-between px-5 pt-2">
+        <View className="flex-row items-center justify-between px-5 pt-1">
           <Pressable hitSlop={14}>
             <Image
               source={require("@/assets/img/ic_hamburger.png")}
-              style={{ width: 24, height: 24, tintColor: "#f5e9ff" }}
+              style={{ width: 22, height: 22, tintColor: "#f5f1ff" }}
               contentFit="contain"
             />
           </Pressable>
           <Image
             source={require("@/assets/img/FlickApp_TopLogo.png")}
-            style={{ width: 158, height: 74 }}
+            style={{ width: 132, height: 60 }}
             contentFit="contain"
           />
           <Pressable hitSlop={14}>
             <Image
               source={require("@/assets/img/ic_badges.png")}
-              style={{ width: 24, height: 24, tintColor: "#00e5ff" }}
+              style={{ width: 22, height: 22, tintColor: "#5cf0ff" }}
               contentFit="contain"
             />
           </Pressable>
         </View>
 
-        <View className="mt-2 px-5">
-          <Text
-            className="text-ink-400"
-            style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 11, letterSpacing: 2 }}
-          >
-            // YOUR COLLECTIONS
-          </Text>
-          <Text
-            className="mt-1 text-ink-50"
-            style={{ fontFamily: "Orbitron_900Black", fontSize: 30, letterSpacing: 1 }}
-          >
-            MY LISTS
-          </Text>
-        </View>
-
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingTop: 8, paddingBottom: 32 }}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 110 }}
         >
+          <View className="px-5 pb-2 pt-4">
+            <Text
+              style={{
+                fontFamily: "Inter_500Medium",
+                fontSize: 15,
+                color: "rgba(245,241,255,0.55)",
+                letterSpacing: 0.2,
+              }}
+            >
+              Your collections
+            </Text>
+            <Text
+              style={{
+                fontFamily: "Orbitron_900Black",
+                fontSize: 34,
+                lineHeight: 41,
+                letterSpacing: 0.5,
+                color: "#f5f1ff",
+                marginTop: 4,
+              }}
+            >
+              My Lists
+            </Text>
+          </View>
+
           {LISTS.map((list) => (
             <ListCard
               key={list.id}
@@ -108,12 +117,17 @@ export default function ListsScreen() {
               }
             />
           ))}
-          <View className="mt-10 items-center">
+
+          <View className="mt-12 items-center">
             <Text
-              className="text-ink-600"
-              style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 11, letterSpacing: 1.5 }}
+              style={{
+                fontFamily: "Inter_400Regular",
+                fontSize: 12,
+                color: "rgba(245,241,255,0.25)",
+                letterSpacing: 0.3,
+              }}
             >
-              MADE IN TOKYO
+              Made in Tokyo
             </Text>
           </View>
         </ScrollView>

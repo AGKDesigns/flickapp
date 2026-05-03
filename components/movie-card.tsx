@@ -24,23 +24,21 @@ export function MovieCard({
   return (
     <Pressable
       onPress={onPress}
-      android_ripple={{ color: "#ff2e93" }}
+      android_ripple={{ color: "rgba(255,46,147,0.25)" }}
       style={({ pressed }) => ({
         transform: [{ scale: pressed ? 0.97 : 1 }],
       })}
-      className="mb-4 w-[48%]"
+      className="mb-5 w-[48%]"
     >
       <View
-        className={`aspect-[2/3] overflow-hidden rounded-xl border ${
-          watched
-            ? "border-cyan-500/70"
-            : "border-magenta-500/30"
-        } bg-night-800`}
+        className="aspect-[2/3] overflow-hidden rounded-card bg-night-900"
         style={{
-          shadowColor: watched ? "#00e5ff" : "#ff2e93",
-          shadowOpacity: watched ? 0.5 : 0.3,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 4 },
+          borderWidth: 0.5,
+          borderColor: watched ? "rgba(0,229,255,0.35)" : "rgba(255,255,255,0.08)",
+          shadowColor: watched ? "#00e5ff" : "#000",
+          shadowOpacity: watched ? 0.35 : 0.45,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 6 },
         }}
       >
         {url ? (
@@ -49,44 +47,55 @@ export function MovieCard({
             contentFit="cover"
             style={{
               flex: 1,
-              opacity: watched ? 0.5 : 1,
+              opacity: watched ? 0.45 : 1,
             }}
             transition={200}
           />
         ) : (
           <View className="flex-1 items-center justify-center">
             <Text
-              className="text-ink-600"
-              style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 10 }}
+              style={{ fontFamily: "Inter_500Medium", fontSize: 11, color: "rgba(245,241,255,0.4)" }}
             >
-              NO POSTER
+              No poster
             </Text>
           </View>
         )}
 
         {watched ? (
-          <View className="absolute right-2 top-2 h-7 w-7 items-center justify-center rounded-full border border-cyan-400 bg-night-950/80">
+          <View
+            className="absolute right-2 top-2 h-7 w-7 items-center justify-center rounded-full"
+            style={{ backgroundColor: "rgba(0,229,255,0.95)" }}
+          >
             <Text
-              className="text-cyan-400"
-              style={{ fontFamily: "Orbitron_900Black", fontSize: 12 }}
+              style={{ fontFamily: "Inter_600SemiBold", fontSize: 14, color: "#050506" }}
             >
               ✓
             </Text>
           </View>
         ) : null}
 
-        <View className="absolute left-2 top-2 rounded-md border border-sunset-400/60 bg-night-950/80 px-1.5 py-0.5">
+        <View
+          className="absolute left-2 top-2 rounded-full px-2 py-0.5"
+          style={{ backgroundColor: "rgba(5,5,6,0.7)" }}
+        >
           <Text
-            className="text-sunset-400"
-            style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 10 }}
+            style={{
+              fontFamily: "Inter_600SemiBold",
+              fontSize: 11,
+              color: "#ffd166",
+            }}
           >
             ★ {voteAverage.toFixed(1)}
           </Text>
         </View>
       </View>
       <Text
-        className="mt-1.5 text-ink-50"
-        style={{ fontFamily: "Inter_600SemiBold", fontSize: 13 }}
+        style={{
+          fontFamily: "Inter_600SemiBold",
+          fontSize: 14,
+          color: "#f5f1ff",
+          marginTop: 8,
+        }}
         numberOfLines={2}
       >
         {title}

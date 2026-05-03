@@ -2,64 +2,98 @@ import { LinearGradient } from "expo-linear-gradient";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { GlassCard } from "@/components/glass-card";
+
 export default function DiscoverScreen() {
   return (
     <View className="flex-1 bg-night-950">
       <LinearGradient
-        colors={["#00e5ff", "#ff2e93", "#170933", "#070014"]}
-        locations={[0, 0.18, 0.55, 1]}
+        colors={["#00e5ff", "#ff2e93", "#170933", "#050506"]}
+        locations={[0, 0.2, 0.55, 1]}
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
-          height: 380,
-          opacity: 0.45,
+          height: 420,
+          opacity: 0.35,
         }}
       />
       <SafeAreaView edges={["top"]} className="flex-1">
-        <View className="px-5 pt-2">
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 110 }}
+        >
           <Text
-            className="text-ink-400"
-            style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 11, letterSpacing: 2 }}
+            style={{
+              fontFamily: "Inter_500Medium",
+              fontSize: 15,
+              color: "rgba(245,241,255,0.55)",
+              letterSpacing: 0.2,
+            }}
           >
-            // EXPLORE
+            Explore
           </Text>
           <Text
-            className="mt-1 text-ink-50"
-            style={{ fontFamily: "Orbitron_900Black", fontSize: 30, letterSpacing: 1 }}
+            style={{
+              fontFamily: "Orbitron_900Black",
+              fontSize: 34,
+              lineHeight: 41,
+              letterSpacing: 0.5,
+              color: "#f5f1ff",
+              marginTop: 4,
+            }}
           >
-            DISCOVER
+            Discover
           </Text>
           <Text
-            className="mt-2 text-ink-200"
-            style={{ fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 21 }}
+            style={{
+              fontFamily: "Inter_400Regular",
+              fontSize: 16,
+              lineHeight: 22,
+              color: "rgba(245,241,255,0.7)",
+              marginTop: 8,
+            }}
           >
             Sponsored picks, friend lists, and trending challenges.
           </Text>
-        </View>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 24 }}>
-          <View className="rounded-2xl border border-cyan-500/40 bg-night-800/80 p-6">
+
+          <GlassCard glow="cyan" className="mt-8 p-6">
             <Text
-              className="text-cyan-400"
-              style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 11, letterSpacing: 2 }}
+              style={{
+                fontFamily: "Inter_600SemiBold",
+                fontSize: 11,
+                letterSpacing: 1.5,
+                color: "#5cf0ff",
+              }}
             >
               COMING SOON
             </Text>
             <Text
-              className="mt-2 text-ink-50"
-              style={{ fontFamily: "Orbitron_700Bold", fontSize: 18, letterSpacing: 1 }}
+              style={{
+                fontFamily: "Orbitron_700Bold",
+                fontSize: 22,
+                lineHeight: 28,
+                letterSpacing: 0.3,
+                color: "#f5f1ff",
+                marginTop: 6,
+              }}
             >
-              CURATED FEEDS
+              Curated feeds
             </Text>
             <Text
-              className="mt-2 text-ink-200"
-              style={{ fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 }}
+              style={{
+                fontFamily: "Inter_400Regular",
+                fontSize: 15,
+                lineHeight: 22,
+                color: "rgba(245,241,255,0.7)",
+                marginTop: 8,
+              }}
             >
-              Discover lists from sponsors, follow friends to see what they&apos;re
-              watching, and find new challenges to chase.
+              Discover lists from sponsors, follow friends to see what
+              they&apos;re watching, and find new challenges to chase.
             </Text>
-          </View>
+          </GlassCard>
         </ScrollView>
       </SafeAreaView>
     </View>
