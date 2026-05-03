@@ -170,6 +170,90 @@ export async function fetchWatchedIds(movieIds?: number[]): Promise<Set<number>>
   return new Set((data ?? []).map((r) => r.movie_id));
 }
 
+// =========================================================================
+// Tonight picks — top-rated unwatched movies from the user's subscribed lists
+// =========================================================================
+export type TonightPick = {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  vote_average: number;
+  release_year: number | null;
+  list_title: string;
+};
+
+type UserListWithMeta = {
+  lists: { id: string; slug: string; title: string };
+};
+
+type ItemWithMovie = {
+  list_id: string;
+  movies: {
+    tmdb_id: number;
+    title: string;
+    poster_path: string | null;
+    backdrop_path: string | null;
+    vote_average: number;
+    release_year: number | null;
+  } | null;
+};
+
+export async function fetchTonightPicks(
+  listSlugs: string[] | null,
+  limit = 6,
+): Promise<TonightPick[]> {
+  // Resolve which of the user's subscribed lists match the requested slugs.
+  // If listSlugs is null, pull from every list the user has.
+  let q = supabase
+    .from("user_lists")
+    .select("lists!inner(id, slug, title)");
+  if (listSlugs && listSlugs.length > 0) {
+    q = q.in("lists.slug", listSlugs);
+  }
+  const { data: ulRows, error: ulErr } = await q.returns<UserListWithMeta[]>();
+  if (ulErr) throw new Error(`fetchTonightPicks (user_lists): ${ulErr.message}`);
+
+  const lists = (ulRows ?? []).map((r) => r.lists);
+  if (lists.length === 0) return [];
+
+  const listIdToTitle = new Map(lists.map((l) => [l.id, l.title]));
+  const listIds = lists.map((l) => l.id);
+
+  const { data: items, error: itemsErr } = await supabase
+    .from("list_items")
+    .select(
+      "list_id, movies!inner(tmdb_id, title, poster_path, backdrop_path, vote_average, release_year)",
+    )
+    .in("list_id", listIds)
+    .returns<ItemWithMovie[]>();
+
+  if (itemsErr) throw new Error(`fetchTonightPicks (list_items): ${itemsErr.message}`);
+
+  const watched = await fetchWatchedIds().catch(() => new Set<number>());
+
+  const seen = new Map<number, TonightPick>();
+  for (const item of items ?? []) {
+    const m = item.movies;
+    if (!m) continue;
+    if (watched.has(m.tmdb_id)) continue;
+    if (seen.has(m.tmdb_id)) continue;
+    seen.set(m.tmdb_id, {
+      tmdb_id: m.tmdb_id,
+      title: m.title,
+      poster_path: m.poster_path,
+      backdrop_path: m.backdrop_path,
+      vote_average: m.vote_average,
+      release_year: m.release_year,
+      list_title: listIdToTitle.get(item.list_id) ?? "",
+    });
+  }
+
+  return [...seen.values()]
+    .sort((a, b) => b.vote_average - a.vote_average)
+    .slice(0, limit);
+}
+
 export async function fetchUserListProgress(): Promise<Map<string, number>> {
   const { data, error } = await supabase.rpc("user_list_progress");
   if (error) throw new Error(`fetchUserListProgress: ${error.message}`);

@@ -1,9 +1,9 @@
 import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
+import { Compass, Library, Sparkles } from "lucide-react-native";
 import { Platform, StyleSheet, View } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 
 function TabBarBackground() {
   if (Platform.OS === "ios") {
@@ -50,9 +50,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
+          title: "Tonight",
+          tabBarIcon: ({ color }) => (
+            <Sparkles size={22} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="lists"
+        options={{
           title: "Lists",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="list.bullet" color={color} />
+            <Library size={22} color={color} strokeWidth={2} />
           ),
         }}
       />
@@ -61,7 +70,7 @@ export default function TabLayout() {
         options={{
           title: "Discover",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="sparkles" color={color} />
+            <Compass size={22} color={color} strokeWidth={2} />
           ),
         }}
       />
