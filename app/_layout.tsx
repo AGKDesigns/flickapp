@@ -102,6 +102,10 @@ export default function RootLayout() {
           name="movie/[id]"
           options={{ presentation: "card", animation: "slide_from_bottom" }}
         />
+        <Stack.Screen
+          name="trophies"
+          options={{ animation: "slide_from_right" }}
+        />
       </Stack>
       <StatusBar style="light" />
     </ThemeProvider>

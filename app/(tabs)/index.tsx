@@ -20,6 +20,12 @@ export default function ListsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Drop completed lists — they live in the trophy room.
+  const activeLists = lists.filter((l) => {
+    if (l.total === 0) return true;
+    return (progress.get(l.id) ?? 0) < l.total;
+  });
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -72,7 +78,7 @@ export default function ListsScreen() {
             style={{ width: 132, height: 60 }}
             contentFit="contain"
           />
-          <Pressable hitSlop={14}>
+          <Pressable hitSlop={14} onPress={() => router.push("/trophies")}>
             <Trophy size={22} color="#5cf0ff" strokeWidth={2} />
           </Pressable>
         </View>
@@ -146,7 +152,7 @@ export default function ListsScreen() {
                 </Text>
               </GlassCard>
             </View>
-          ) : lists.length === 0 ? (
+          ) : activeLists.length === 0 ? (
             <View className="mx-5">
               <GlassCard glow="cyan" className="p-6">
                 <Text
@@ -157,7 +163,7 @@ export default function ListsScreen() {
                     color: "#5cf0ff",
                   }}
                 >
-                  NO LISTS YET
+                  {lists.length === 0 ? "NO LISTS YET" : "ALL DONE"}
                 </Text>
                 <Text
                   style={{
@@ -169,7 +175,9 @@ export default function ListsScreen() {
                     marginTop: 6,
                   }}
                 >
-                  Find your first list
+                  {lists.length === 0
+                    ? "Find your first list"
+                    : "Every list complete"}
                 </Text>
                 <Text
                   style={{
@@ -180,11 +188,14 @@ export default function ListsScreen() {
                     marginTop: 8,
                   }}
                 >
-                  Browse the Discover tab and add curated lists to start scratching off
-                  movies you&apos;ve seen.
+                  {lists.length === 0
+                    ? "Browse the Discover tab and add curated lists to start scratching off movies you've seen."
+                    : "Your trophies are in the trophy room. Add another list to keep going."}
                 </Text>
                 <Pressable
-                  onPress={() => router.push("/explore")}
+                  onPress={() =>
+                    router.push(lists.length === 0 ? "/explore" : "/trophies")
+                  }
                   className="mt-5 items-center rounded-card py-3"
                   style={{
                     backgroundColor: "rgba(0,229,255,0.18)",
@@ -200,13 +211,13 @@ export default function ListsScreen() {
                       letterSpacing: 0.5,
                     }}
                   >
-                    Open Discover
+                    {lists.length === 0 ? "Open Discover" : "View trophies"}
                   </Text>
                 </Pressable>
               </GlassCard>
             </View>
           ) : (
-            lists.map((list) => (
+            activeLists.map((list) => (
               <ListCard
                 key={list.id}
                 title={list.title}
