@@ -83,6 +83,27 @@ export type CastMember = {
   order: number;
 };
 
+export type WatchProvider = {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority: number;
+};
+
+export type RegionWatchProviders = {
+  link: string;
+  flatrate?: WatchProvider[];
+  rent?: WatchProvider[];
+  buy?: WatchProvider[];
+  free?: WatchProvider[];
+  ads?: WatchProvider[];
+};
+
+export type WatchProvidersResponse = {
+  id: number;
+  results: Record<string, RegionWatchProviders>;
+};
+
 type Paginated<T> = { page: number; results: T[]; total_pages: number; total_results: number };
 
 // ---- Endpoints ----
@@ -117,7 +138,14 @@ export const tmdb = {
 
   credits: (id: number | string) =>
     tmdbFetch<{ id: number; cast: CastMember[] }>(`/movie/${id}/credits`),
+
+  watchProviders: (id: number | string) =>
+    tmdbFetch<WatchProvidersResponse>(`/movie/${id}/watch/providers`),
 };
+
+export function providerLogoUrl(path: string, size: "w45" | "w92" | "w154" | "original" = "w92") {
+  return `${IMAGE_BASE}/${size}${path}`;
+}
 
 export function pickTrailer(videos: Video[]): Video | null {
   const youtubeTrailers = videos.filter((v) => v.site === "YouTube" && v.type === "Trailer");

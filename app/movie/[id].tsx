@@ -13,14 +13,18 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import * as Localization from "expo-localization";
+
 import {
   backdropUrl,
   isTMDBConfigured,
   pickTrailer,
   posterUrl,
+  providerLogoUrl,
   tmdb,
   type CastMember,
   type MovieDetail,
+  type RegionWatchProviders,
   type Video,
 } from "@/lib/tmdb";
 
@@ -29,6 +33,8 @@ export default function MovieDetailScreen() {
   const [movie, setMovie] = useState<MovieDetail | null>(null);
   const [trailer, setTrailer] = useState<Video | null>(null);
   const [cast, setCast] = useState<CastMember[]>([]);
+  const [providers, setProviders] = useState<RegionWatchProviders | null>(null);
+  const [region, setRegion] = useState<string>("US");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [watched, setWatched] = useState(false);
@@ -45,12 +51,21 @@ export default function MovieDetailScreen() {
     setLoading(true);
     setError(null);
 
-    Promise.all([tmdb.movie(id), tmdb.videos(id), tmdb.credits(id)])
-      .then(([movieData, videosData, creditsData]) => {
+    const userRegion = Localization.getLocales()[0]?.regionCode ?? "US";
+    setRegion(userRegion);
+
+    Promise.all([
+      tmdb.movie(id),
+      tmdb.videos(id),
+      tmdb.credits(id),
+      tmdb.watchProviders(id),
+    ])
+      .then(([movieData, videosData, creditsData, providersData]) => {
         if (cancelled) return;
         setMovie(movieData);
         setTrailer(pickTrailer(videosData.results));
         setCast(creditsData.cast.slice(0, 6));
+        setProviders(providersData.results[userRegion] ?? null);
       })
       .catch((err: Error) => {
         if (cancelled) return;
@@ -335,6 +350,84 @@ export default function MovieDetailScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {/* Where to Watch */}
+        {providers && (providers.flatrate?.length || providers.rent?.length || providers.buy?.length || providers.free?.length) ? (
+          <View className="mt-8 px-5">
+            <View className="flex-row items-baseline justify-between">
+              <Text
+                className="text-cyan-400"
+                style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 11, letterSpacing: 2 }}
+              >
+                // WHERE TO WATCH
+              </Text>
+              <Text
+                className="text-ink-600"
+                style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 10, letterSpacing: 1.5 }}
+              >
+                {region}
+              </Text>
+            </View>
+
+            {(["flatrate", "free", "ads", "rent", "buy"] as const).map((tier) => {
+              const list = providers[tier];
+              if (!list || list.length === 0) return null;
+              const label =
+                tier === "flatrate"
+                  ? "STREAM"
+                  : tier === "free"
+                    ? "FREE"
+                    : tier === "ads"
+                      ? "FREE WITH ADS"
+                      : tier === "rent"
+                        ? "RENT"
+                        : "BUY";
+              return (
+                <View key={tier} className="mt-4">
+                  <Text
+                    className="text-magenta-400"
+                    style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 10, letterSpacing: 1.5 }}
+                  >
+                    {label}
+                  </Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 10, paddingTop: 8, paddingRight: 20 }}
+                  >
+                    {list.map((p) => (
+                      <Pressable
+                        key={p.provider_id}
+                        onPress={() => Linking.openURL(providers.link)}
+                        android_ripple={{ color: "#ff2e93" }}
+                        style={({ pressed }) => ({
+                          transform: [{ scale: pressed ? 0.94 : 1 }],
+                        })}
+                      >
+                        <View className="h-14 w-14 overflow-hidden rounded-xl border border-ink-600/50 bg-night-800">
+                          <Image
+                            source={{ uri: providerLogoUrl(p.logo_path, "w92") }}
+                            contentFit="cover"
+                            style={{ flex: 1 }}
+                            transition={150}
+                            accessibilityLabel={p.provider_name}
+                          />
+                        </View>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              );
+            })}
+
+            <Text
+              className="mt-4 text-ink-600"
+              style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 10, letterSpacing: 1.5 }}
+            >
+              STREAMING DATA BY JUSTWATCH
+            </Text>
+          </View>
+        ) : null}
 
         {/* Cast */}
         {cast.length > 0 ? (
