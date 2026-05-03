@@ -108,21 +108,35 @@ const LISTS: ListConfig[] = [
     source: { kind: "topRated", take: 100 },
   },
   {
+    slug: "best-comedy",
+    title: "Best Comedy",
+    description: "The 30 highest-rated comedies with broad audience reach.",
+    is_default: true,
+    source: { kind: "discover", params: genreDiscover("35"), take: 30 },
+  },
+  {
+    slug: "best-action",
+    title: "Best Action",
+    description: "The most acclaimed action films of all time.",
+    is_default: true,
+    source: { kind: "discover", params: genreDiscover("28"), take: 25 },
+  },
+
+  // ---- Decade picks ----
+  {
     slug: "best-of-the-90s",
     title: "Best of the 90s",
     description: "The defining films of 1990–1999, by community rating.",
-    is_default: true,
     source: { kind: "discover", params: decadeDiscover(1990), take: 25 },
   },
   {
     slug: "best-of-the-2010s",
     title: "Best of the 2010s",
     description: "The most acclaimed films of 2010–2019.",
-    is_default: true,
     source: { kind: "discover", params: decadeDiscover(2010), take: 25 },
   },
 
-  // ---- Genre picks ----
+  // ---- Other genres ----
   {
     slug: "best-horror",
     title: "Best Horror",
@@ -130,22 +144,10 @@ const LISTS: ListConfig[] = [
     source: { kind: "discover", params: genreDiscover("27"), take: 25 },
   },
   {
-    slug: "best-comedy",
-    title: "Best Comedy",
-    description: "The 30 highest-rated comedies with broad audience reach.",
-    source: { kind: "discover", params: genreDiscover("35"), take: 30 },
-  },
-  {
     slug: "best-sci-fi",
     title: "Best Sci-Fi",
     description: "Reality-bending science fiction the community loved.",
     source: { kind: "discover", params: genreDiscover("878"), take: 25 },
-  },
-  {
-    slug: "best-action",
-    title: "Best Action",
-    description: "The most acclaimed action films of all time.",
-    source: { kind: "discover", params: genreDiscover("28"), take: 25 },
   },
   {
     slug: "best-animation",

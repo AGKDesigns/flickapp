@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
+import { Trophy } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -65,24 +66,14 @@ export default function ListsScreen() {
 
       <SafeAreaView edges={["top"]} className="flex-1">
         <View className="flex-row items-center justify-between px-5 pt-1">
-          <Pressable hitSlop={14}>
-            <Image
-              source={require("@/assets/img/ic_hamburger.png")}
-              style={{ width: 22, height: 22, tintColor: "#f5f1ff" }}
-              contentFit="contain"
-            />
-          </Pressable>
+          <View style={{ width: 36 }} />
           <Image
             source={require("@/assets/img/FlickApp_TopLogo.png")}
             style={{ width: 132, height: 60 }}
             contentFit="contain"
           />
           <Pressable hitSlop={14}>
-            <Image
-              source={require("@/assets/img/ic_badges.png")}
-              style={{ width: 22, height: 22, tintColor: "#5cf0ff" }}
-              contentFit="contain"
-            />
+            <Trophy size={22} color="#5cf0ff" strokeWidth={2} />
           </Pressable>
         </View>
 
