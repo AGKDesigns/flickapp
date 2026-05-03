@@ -6,44 +6,30 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { GlassCard } from "@/components/glass-card";
 import { MovieCard } from "@/components/movie-card";
-import { getCuratedList } from "@/lib/lists";
-import { isTMDBConfigured, tmdb, type MovieListItem } from "@/lib/tmdb";
+import { fetchCuratedListBySlug, type CuratedListWithMovies } from "@/lib/lists";
 
 export default function ListDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const list = id ? getCuratedList(id) : undefined;
+  const { slug } = useLocalSearchParams<{ slug: string }>();
 
-  const [movies, setMovies] = useState<MovieListItem[]>([]);
+  const [list, setList] = useState<CuratedListWithMovies | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!list) {
-      setLoading(false);
-      setError(`No list found for "${id}"`);
-      return;
-    }
-    if (!isTMDBConfigured) {
-      setLoading(false);
-      setError("TMDB not configured. Add EXPO_PUBLIC_TMDB_READ_TOKEN to .env and restart Metro.");
-      return;
-    }
+    if (!slug) return;
 
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    const promise =
-      list.source.kind === "topRated"
-        ? tmdb.topRated()
-        : list.source.kind === "popular"
-          ? tmdb.popular()
-          : tmdb.discover(list.source.params);
-
-    promise
+    fetchCuratedListBySlug(slug)
       .then((data) => {
         if (cancelled) return;
-        setMovies(data.results.slice(0, list.total));
+        if (!data) {
+          setError(`No list found for "${slug}"`);
+        } else {
+          setList(data);
+        }
       })
       .catch((err: Error) => {
         if (cancelled) return;
@@ -57,7 +43,7 @@ export default function ListDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [id, list]);
+  }, [slug]);
 
   return (
     <View className="flex-1 bg-night-950">
@@ -118,18 +104,35 @@ export default function ListDetailScreen() {
             }}
             numberOfLines={2}
           >
-            {list?.title ?? "List"}
+            {list?.title ?? (loading ? "" : "List")}
           </Text>
-          <Text
-            style={{
-              fontFamily: "Inter_500Medium",
-              fontSize: 14,
-              color: "#5cf0ff",
-              marginTop: 4,
-            }}
-          >
-            {list ? `0 of ${list.total} watched` : ""}
-          </Text>
+          {list ? (
+            <Text
+              style={{
+                fontFamily: "Inter_500Medium",
+                fontSize: 14,
+                color: "#5cf0ff",
+                marginTop: 4,
+              }}
+            >
+              {list.total === 0
+                ? "Coming soon"
+                : `0 of ${list.total} watched`}
+            </Text>
+          ) : null}
+          {list?.description ? (
+            <Text
+              style={{
+                fontFamily: "Inter_400Regular",
+                fontSize: 14,
+                lineHeight: 20,
+                color: "rgba(245,241,255,0.7)",
+                marginTop: 10,
+              }}
+            >
+              {list.description}
+            </Text>
+          ) : null}
 
           <View className="mt-6">
             {loading ? (
@@ -170,25 +173,49 @@ export default function ListDetailScreen() {
                   {error}
                 </Text>
               </GlassCard>
-            ) : (
+            ) : list && list.movies.length === 0 ? (
+              <GlassCard glow="cyan" className="p-5">
+                <Text
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                    color: "#5cf0ff",
+                  }}
+                >
+                  COMING SOON
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 14,
+                    lineHeight: 20,
+                    color: "rgba(245,241,255,0.85)",
+                    marginTop: 6,
+                  }}
+                >
+                  We&apos;re still curating this list. Check back soon.
+                </Text>
+              </GlassCard>
+            ) : list ? (
               <View className="flex-row flex-wrap justify-between">
-                {movies.map((movie) => (
+                {list.movies.map((movie) => (
                   <MovieCard
-                    key={movie.id}
-                    id={movie.id}
+                    key={movie.tmdb_id}
+                    id={movie.tmdb_id}
                     title={movie.title}
                     posterPath={movie.poster_path}
                     voteAverage={movie.vote_average}
                     onPress={() =>
                       router.push({
                         pathname: "/movie/[id]",
-                        params: { id: String(movie.id) },
+                        params: { id: String(movie.tmdb_id) },
                       })
                     }
                   />
                 ))}
               </View>
-            )}
+            ) : null}
           </View>
 
           <Text

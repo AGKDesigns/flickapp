@@ -1,43 +1,43 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { GlassCard } from "@/components/glass-card";
 import { ListCard } from "@/components/list-card";
-
-const LISTS = [
-  {
-    id: "top-100",
-    title: "Top 100 movies",
-    image: require("@/assets/img/ListCardBG01.png"),
-    watched: 12,
-    total: 100,
-  },
-  {
-    id: "best-horror",
-    title: "Best Horror",
-    image: require("@/assets/img/TheConjouring.jpg"),
-    watched: 4,
-    total: 25,
-  },
-  {
-    id: "laughable",
-    title: "Laughable Movies",
-    image: require("@/assets/img/stepbrothers.jpeg"),
-    watched: 7,
-    total: 30,
-  },
-  {
-    id: "best-2019",
-    title: "Best of 2019",
-    image: require("@/assets/img/parasite.jpg"),
-    watched: 3,
-    total: 20,
-  },
-];
+import { fetchCuratedLists, type CuratedListSummary } from "@/lib/lists";
 
 export default function ListsScreen() {
+  const [lists, setLists] = useState<CuratedListSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    fetchCuratedLists()
+      .then((data) => {
+        if (cancelled) return;
+        setLists(data);
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        setError(err.message);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <View className="flex-1 bg-night-950">
       <LinearGradient
@@ -105,18 +105,61 @@ export default function ListsScreen() {
             </Text>
           </View>
 
-          {LISTS.map((list) => (
-            <ListCard
-              key={list.id}
-              title={list.title}
-              image={list.image}
-              watched={list.watched}
-              total={list.total}
-              onPress={() =>
-                router.push({ pathname: "/list/[id]", params: { id: list.id } })
-              }
-            />
-          ))}
+          {loading ? (
+            <View className="items-center py-16">
+              <ActivityIndicator color="#ff2e93" />
+              <Text
+                style={{
+                  fontFamily: "Inter_500Medium",
+                  fontSize: 13,
+                  color: "rgba(245,241,255,0.55)",
+                  marginTop: 12,
+                }}
+              >
+                Loading…
+              </Text>
+            </View>
+          ) : error ? (
+            <GlassCard glow="magenta" className="mx-5 p-5">
+              <Text
+                style={{
+                  fontFamily: "Inter_600SemiBold",
+                  fontSize: 12,
+                  letterSpacing: 1.5,
+                  color: "#ff5fa8",
+                }}
+              >
+                ERROR
+              </Text>
+              <Text
+                style={{
+                  fontFamily: "Inter_400Regular",
+                  fontSize: 14,
+                  lineHeight: 20,
+                  color: "rgba(245,241,255,0.85)",
+                  marginTop: 6,
+                }}
+              >
+                {error}
+              </Text>
+            </GlassCard>
+          ) : (
+            lists.map((list) => (
+              <ListCard
+                key={list.id}
+                title={list.title}
+                coverUrl={list.cover_url}
+                watched={0}
+                total={list.total}
+                onPress={() =>
+                  router.push({
+                    pathname: "/list/[slug]",
+                    params: { slug: list.slug },
+                  })
+                }
+              />
+            ))
+          )}
 
           <View className="mt-12 items-center">
             <Text

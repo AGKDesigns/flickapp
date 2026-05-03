@@ -1,66 +1,108 @@
-import type { DiscoverParams } from "@/lib/tmdb";
+import { supabase } from "@/lib/supabase";
+import { backdropUrl } from "@/lib/tmdb";
 
-export type CuratedList = {
+export type CuratedListSummary = {
   id: string;
+  slug: string;
   title: string;
+  description: string | null;
+  cover_url: string | null;
   total: number;
-  // Either a topRated pull or a discover query
-  source:
-    | { kind: "topRated" }
-    | { kind: "popular" }
-    | { kind: "discover"; params: DiscoverParams };
 };
 
-// TMDB genre IDs (stable):
-// 27=Horror, 35=Comedy, 28=Action, 18=Drama, 878=Sci-Fi, 53=Thriller, 10749=Romance, 99=Documentary, 16=Animation
-export const CURATED_LISTS: CuratedList[] = [
-  {
-    id: "top-100",
-    title: "Top 100 Movies",
-    total: 100,
-    source: { kind: "topRated" },
-  },
-  {
-    id: "best-horror",
-    title: "Best Horror",
-    total: 25,
-    source: {
-      kind: "discover",
-      params: {
-        with_genres: "27",
-        sort_by: "vote_average.desc",
-        "vote_count.gte": 1500,
-      },
-    },
-  },
-  {
-    id: "laughable",
-    title: "Laughable Movies",
-    total: 30,
-    source: {
-      kind: "discover",
-      params: {
-        with_genres: "35",
-        sort_by: "vote_average.desc",
-        "vote_count.gte": 1500,
-      },
-    },
-  },
-  {
-    id: "best-2019",
-    title: "Best of 2019",
-    total: 20,
-    source: {
-      kind: "discover",
-      params: {
-        primary_release_year: 2019,
-        sort_by: "vote_average.desc",
-        "vote_count.gte": 500,
-      },
-    },
-  },
-];
+export type CuratedListMovie = {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+  vote_average: number;
+  position: number | null;
+};
 
-export function getCuratedList(id: string): CuratedList | undefined {
-  return CURATED_LISTS.find((l) => l.id === id);
+export type CuratedListWithMovies = CuratedListSummary & {
+  movies: CuratedListMovie[];
+};
+
+type ListsRow = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  cover_image: string | null;
+  list_items: { count: number }[];
+};
+
+type ListWithItemsRow = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  cover_image: string | null;
+  list_items: {
+    position: number | null;
+    movies: {
+      tmdb_id: number;
+      title: string;
+      poster_path: string | null;
+      vote_average: number;
+    } | null;
+  }[];
+};
+
+export async function fetchCuratedLists(): Promise<CuratedListSummary[]> {
+  const { data, error } = await supabase
+    .from("lists")
+    .select("id, slug, title, description, cover_image, list_items(count)")
+    .eq("type", "curated")
+    .eq("is_public", true)
+    .order("created_at", { ascending: true })
+    .returns<ListsRow[]>();
+
+  if (error) throw new Error(`fetchCuratedLists: ${error.message}`);
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    cover_url: row.cover_image ? backdropUrl(row.cover_image, "w1280") : null,
+    total: row.list_items?.[0]?.count ?? 0,
+  }));
+}
+
+export async function fetchCuratedListBySlug(
+  slug: string,
+): Promise<CuratedListWithMovies | null> {
+  const { data, error } = await supabase
+    .from("lists")
+    .select(
+      "id, slug, title, description, cover_image, list_items(position, movies(tmdb_id, title, poster_path, vote_average))",
+    )
+    .eq("type", "curated")
+    .eq("slug", slug)
+    .order("position", { foreignTable: "list_items", ascending: true })
+    .maybeSingle()
+    .returns<ListWithItemsRow | null>();
+
+  if (error) throw new Error(`fetchCuratedListBySlug: ${error.message}`);
+  if (!data) return null;
+
+  const movies: CuratedListMovie[] = (data.list_items ?? [])
+    .filter((item) => item.movies !== null)
+    .map((item) => ({
+      tmdb_id: item.movies!.tmdb_id,
+      title: item.movies!.title,
+      poster_path: item.movies!.poster_path,
+      vote_average: item.movies!.vote_average,
+      position: item.position,
+    }));
+
+  return {
+    id: data.id,
+    slug: data.slug,
+    title: data.title,
+    description: data.description,
+    cover_url: data.cover_image ? backdropUrl(data.cover_image, "w1280") : null,
+    total: movies.length,
+    movies,
+  };
 }

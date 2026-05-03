@@ -1,18 +1,18 @@
-import { ImageSourcePropType, Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { Pressable, Text, View } from "react-native";
 
 type Props = {
   title: string;
-  image: ImageSourcePropType;
+  coverUrl: string | null;
   watched: number;
   total: number;
   onPress?: () => void;
 };
 
-export function ListCard({ title, image, watched, total, onPress }: Props) {
-  const progress = Math.min(1, watched / Math.max(1, total));
-  const complete = watched >= total;
+export function ListCard({ title, coverUrl, watched, total, onPress }: Props) {
+  const progress = total === 0 ? 0 : Math.min(1, watched / total);
+  const complete = total > 0 && watched >= total;
 
   return (
     <Pressable
@@ -34,11 +34,19 @@ export function ListCard({ title, image, watched, total, onPress }: Props) {
           shadowOffset: { width: 0, height: 10 },
         }}
       >
-        <Image
-          source={image}
-          contentFit="cover"
-          style={{ position: "absolute", inset: 0 }}
-        />
+        {coverUrl ? (
+          <Image
+            source={{ uri: coverUrl }}
+            contentFit="cover"
+            style={{ position: "absolute", inset: 0 }}
+            transition={250}
+          />
+        ) : (
+          <LinearGradient
+            colors={["#221152", "#170933", "#050506"]}
+            style={{ position: "absolute", inset: 0 }}
+          />
+        )}
         <LinearGradient
           colors={[
             "rgba(5,5,6,0.0)",
@@ -72,7 +80,9 @@ export function ListCard({ title, image, watched, total, onPress }: Props) {
                 color: "rgba(245,241,255,0.75)",
               }}
             >
-              {watched} of {total} watched
+              {total === 0
+                ? "Coming soon"
+                : `${watched} of ${total} watched`}
             </Text>
             {complete ? (
               <View className="rounded-full bg-cyan-500/20 px-2 py-0.5">
@@ -90,20 +100,22 @@ export function ListCard({ title, image, watched, total, onPress }: Props) {
             ) : null}
           </View>
 
-          <View
-            className="mt-3 h-1 overflow-hidden rounded-full"
-            style={{ backgroundColor: "rgba(255,255,255,0.10)" }}
-          >
-            <LinearGradient
-              colors={["#00e5ff", "#ff2e93"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                height: "100%",
-                width: `${Math.round(progress * 100)}%`,
-              }}
-            />
-          </View>
+          {total > 0 ? (
+            <View
+              className="mt-3 h-1 overflow-hidden rounded-full"
+              style={{ backgroundColor: "rgba(255,255,255,0.10)" }}
+            >
+              <LinearGradient
+                colors={["#00e5ff", "#ff2e93"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  height: "100%",
+                  width: `${Math.round(progress * 100)}%`,
+                }}
+              />
+            </View>
+          ) : null}
         </View>
       </View>
     </Pressable>
