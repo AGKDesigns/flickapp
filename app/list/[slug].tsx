@@ -1,6 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -9,6 +10,8 @@ import { MovieCard } from "@/components/movie-card";
 import {
   fetchCuratedListBySlug,
   fetchWatchedIds,
+  markWatched,
+  unmarkWatched,
   type CuratedListWithMovies,
 } from "@/lib/lists";
 
@@ -20,6 +23,7 @@ export default function ListDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Fetch list data only when slug changes
   useEffect(() => {
     if (!slug) return;
 
@@ -28,21 +32,12 @@ export default function ListDetailScreen() {
     setError(null);
 
     fetchCuratedListBySlug(slug)
-      .then(async (data) => {
+      .then((data) => {
         if (cancelled) return;
         if (!data) {
           setError(`No list found for "${slug}"`);
-          return;
-        }
-        setList(data);
-        const ids = data.movies.map((m) => m.tmdb_id);
-        if (ids.length > 0) {
-          try {
-            const watched = await fetchWatchedIds(ids);
-            if (!cancelled) setWatchedIds(watched);
-          } catch {
-            // non-fatal — list still renders, just without watched dims
-          }
+        } else {
+          setList(data);
         }
       })
       .catch((err: Error) => {
@@ -59,9 +54,69 @@ export default function ListDetailScreen() {
     };
   }, [slug]);
 
+  // Refresh watched-state every time the screen comes into focus, so toggling
+  // watched on the movie detail page reflects here on back-navigation.
+  useFocusEffect(
+    useCallback(() => {
+      if (!list || list.movies.length === 0) return;
+      let cancelled = false;
+      const ids = list.movies.map((m) => m.tmdb_id);
+      fetchWatchedIds(ids)
+        .then((watched) => {
+          if (!cancelled) setWatchedIds(watched);
+        })
+        .catch(() => {
+          // non-fatal
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [list]),
+  );
+
   const watchedCount = list
     ? list.movies.filter((m) => watchedIds.has(m.tmdb_id)).length
     : 0;
+
+  const onToggleWatched = async (movie: CuratedListWithMovies["movies"][number]) => {
+    const wasWatched = watchedIds.has(movie.tmdb_id);
+
+    Haptics.impactAsync(
+      wasWatched ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Medium,
+    );
+
+    // Optimistic flip
+    setWatchedIds((curr) => {
+      const next = new Set(curr);
+      if (wasWatched) next.delete(movie.tmdb_id);
+      else next.add(movie.tmdb_id);
+      return next;
+    });
+
+    try {
+      if (wasWatched) {
+        await unmarkWatched(movie.tmdb_id);
+      } else {
+        await markWatched({
+          tmdb_id: movie.tmdb_id,
+          title: movie.title,
+          poster_path: movie.poster_path,
+          backdrop_path: null,
+          release_year: null,
+          vote_average: movie.vote_average,
+        });
+      }
+    } catch (err) {
+      // Revert
+      setWatchedIds((curr) => {
+        const next = new Set(curr);
+        if (wasWatched) next.add(movie.tmdb_id);
+        else next.delete(movie.tmdb_id);
+        return next;
+      });
+      console.warn(`[list] toggle watched failed: ${(err as Error).message}`);
+    }
+  };
 
   return (
     <View className="flex-1 bg-night-950">
@@ -231,6 +286,7 @@ export default function ListDetailScreen() {
                         params: { id: String(movie.tmdb_id) },
                       })
                     }
+                    onToggleWatched={() => onToggleWatched(movie)}
                   />
                 ))}
               </View>

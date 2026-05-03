@@ -10,6 +10,7 @@ type Props = {
   voteAverage: number;
   watched?: boolean;
   onPress?: () => void;
+  onToggleWatched?: () => void;
 };
 
 export function MovieCard({
@@ -18,6 +19,7 @@ export function MovieCard({
   voteAverage,
   watched = false,
   onPress,
+  onToggleWatched,
 }: Props) {
   const url = posterUrl(posterPath, "w342");
 
@@ -61,7 +63,34 @@ export function MovieCard({
           </View>
         )}
 
-        {watched ? (
+        {/* Quick-watch toggle in top-right — tap to mark/unmark without opening detail */}
+        {onToggleWatched ? (
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              onToggleWatched();
+            }}
+            hitSlop={8}
+            className="absolute right-2 top-2 h-9 w-9 items-center justify-center rounded-full"
+            style={({ pressed }) => ({
+              backgroundColor: watched ? "rgba(0,229,255,0.95)" : "rgba(5,5,6,0.7)",
+              borderWidth: 0.5,
+              borderColor: watched ? "rgba(0,229,255,1)" : "rgba(255,255,255,0.18)",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Text
+              style={{
+                fontFamily: "Inter_600SemiBold",
+                fontSize: 16,
+                lineHeight: 18,
+                color: watched ? "#050506" : "#f5f1ff",
+              }}
+            >
+              {watched ? "✓" : "+"}
+            </Text>
+          </Pressable>
+        ) : watched ? (
           <View
             className="absolute right-2 top-2 h-7 w-7 items-center justify-center rounded-full"
             style={{ backgroundColor: "rgba(0,229,255,0.95)" }}
