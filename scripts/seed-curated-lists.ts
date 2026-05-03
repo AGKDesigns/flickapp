@@ -71,6 +71,7 @@ type ListConfig = {
   slug: string;
   title: string;
   description: string;
+  is_default?: boolean;
   source:
     | { kind: "topRated"; take: number }
     | { kind: "discover"; params: DiscoverParams; take: number; pages?: number }
@@ -79,57 +80,108 @@ type ListConfig = {
 
 // TMDB genre IDs (stable): 27=Horror, 35=Comedy, 28=Action, 18=Drama,
 // 878=Sci-Fi, 53=Thriller, 10749=Romance, 99=Documentary, 16=Animation
+function decadeDiscover(startYear: number): DiscoverParams {
+  return {
+    "primary_release_date.gte": `${startYear}-01-01`,
+    "primary_release_date.lte": `${startYear + 9}-12-31`,
+    sort_by: "vote_average.desc",
+    "vote_count.gte": 500,
+  };
+}
+
+function genreDiscover(id: string): DiscoverParams {
+  return {
+    with_genres: id,
+    sort_by: "vote_average.desc",
+    "vote_count.gte": 1500,
+  };
+}
+
 const LISTS: ListConfig[] = [
+  // ---- Defaults: auto-added to every new user's library ----
   {
     slug: "greatest-of-all-time",
     title: "Greatest of All Time",
     description:
-      "TMDB's highest-rated films of all time, by community vote weighted with vote count.",
+      "TMDB's highest-rated films of all time, weighted by community vote count.",
+    is_default: true,
     source: { kind: "topRated", take: 100 },
   },
+  {
+    slug: "best-of-the-90s",
+    title: "Best of the 90s",
+    description: "The defining films of 1990–1999, by community rating.",
+    is_default: true,
+    source: { kind: "discover", params: decadeDiscover(1990), take: 25 },
+  },
+  {
+    slug: "best-of-the-2010s",
+    title: "Best of the 2010s",
+    description: "The most acclaimed films of 2010–2019.",
+    is_default: true,
+    source: { kind: "discover", params: decadeDiscover(2010), take: 25 },
+  },
+
+  // ---- Genre picks ----
   {
     slug: "best-horror",
     title: "Best Horror",
     description: "The 25 highest-rated horror films with broad audience reach.",
-    source: {
-      kind: "discover",
-      params: {
-        with_genres: "27",
-        sort_by: "vote_average.desc",
-        "vote_count.gte": 1500,
-      },
-      take: 25,
-    },
+    source: { kind: "discover", params: genreDiscover("27"), take: 25 },
   },
   {
     slug: "best-comedy",
     title: "Best Comedy",
     description: "The 30 highest-rated comedies with broad audience reach.",
-    source: {
-      kind: "discover",
-      params: {
-        with_genres: "35",
-        sort_by: "vote_average.desc",
-        "vote_count.gte": 1500,
-      },
-      take: 30,
-    },
+    source: { kind: "discover", params: genreDiscover("35"), take: 30 },
   },
   {
-    slug: "best-of-the-80s",
-    title: "Best of the 80s",
-    description: "The 25 best-rated films released between 1980 and 1989.",
+    slug: "best-sci-fi",
+    title: "Best Sci-Fi",
+    description: "Reality-bending science fiction the community loved.",
+    source: { kind: "discover", params: genreDiscover("878"), take: 25 },
+  },
+  {
+    slug: "best-action",
+    title: "Best Action",
+    description: "The most acclaimed action films of all time.",
+    source: { kind: "discover", params: genreDiscover("28"), take: 25 },
+  },
+  {
+    slug: "best-animation",
+    title: "Best Animation",
+    description: "Animated features that earned the highest community ratings.",
+    source: { kind: "discover", params: genreDiscover("16"), take: 25 },
+  },
+  {
+    slug: "best-documentaries",
+    title: "Best Documentaries",
+    description: "Top-rated documentaries — true stories, exceptional craft.",
     source: {
       kind: "discover",
       params: {
-        "primary_release_date.gte": "1980-01-01",
-        "primary_release_date.lte": "1989-12-31",
+        with_genres: "99",
         sort_by: "vote_average.desc",
-        "vote_count.gte": 500,
+        "vote_count.gte": 200,
       },
       take: 25,
     },
   },
+
+  // ---- Decade picks ----
+  {
+    slug: "best-of-the-80s",
+    title: "Best of the 80s",
+    description: "Highest-rated films of 1980–1989.",
+    source: { kind: "discover", params: decadeDiscover(1980), take: 25 },
+  },
+  {
+    slug: "best-of-the-2000s",
+    title: "Best of the 2000s",
+    description: "Highest-rated films of 2000–2009.",
+    source: { kind: "discover", params: decadeDiscover(2000), take: 25 },
+  },
+
   // -----------------------------------------------------------------------
   // Static canonical lists. Populate the `ids` arrays with real TMDB IDs
   // before re-running the seed; for now they ship with empty arrays so the
@@ -162,6 +214,17 @@ const LISTS: ListConfig[] = [
 // =========================================================================
 // Resolve movies
 // =========================================================================
+function dedupe(movies: TMDBMovie[]): TMDBMovie[] {
+  const seen = new Set<number>();
+  const out: TMDBMovie[] = [];
+  for (const m of movies) {
+    if (seen.has(m.id)) continue;
+    seen.add(m.id);
+    out.push(m);
+  }
+  return out;
+}
+
 async function resolveMovies(cfg: ListConfig): Promise<TMDBMovie[]> {
   if (cfg.source.kind === "byIds") {
     if (cfg.source.ids.length === 0) return [];
@@ -173,7 +236,7 @@ async function resolveMovies(cfg: ListConfig): Promise<TMDBMovie[]> {
         console.warn(`  ⚠ failed to fetch movie ${id}: ${(err as Error).message}`);
       }
     }
-    return movies;
+    return dedupe(movies);
   }
 
   if (cfg.source.kind === "topRated") {
@@ -184,7 +247,7 @@ async function resolveMovies(cfg: ListConfig): Promise<TMDBMovie[]> {
       collected.push(...data.results);
       page++;
     }
-    return collected.slice(0, cfg.source.take);
+    return dedupe(collected).slice(0, cfg.source.take);
   }
 
   // discover
@@ -196,9 +259,9 @@ async function resolveMovies(cfg: ListConfig): Promise<TMDBMovie[]> {
       page,
     });
     collected.push(...data.results);
-    if (collected.length >= cfg.source.take) break;
+    if (dedupe(collected).length >= cfg.source.take) break;
   }
-  return collected.slice(0, cfg.source.take);
+  return dedupe(collected).slice(0, cfg.source.take);
 }
 
 // =========================================================================
@@ -244,6 +307,7 @@ async function seedList(cfg: ListConfig) {
         description: cfg.description,
         cover_image: cover,
         is_public: true,
+        is_default: cfg.is_default ?? false,
       },
       { onConflict: "slug" },
     )
