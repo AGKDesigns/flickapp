@@ -16,6 +16,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { GlassCard } from "@/components/glass-card";
 import {
+  fetchWatchedIds,
+  markWatched,
+  unmarkWatched,
+} from "@/lib/lists";
+import {
   backdropUrl,
   isTMDBConfigured,
   pickTrailer,
@@ -75,13 +80,15 @@ export default function MovieDetailScreen() {
       tmdb.videos(id),
       tmdb.credits(id),
       tmdb.watchProviders(id),
+      fetchWatchedIds([Number(id)]).catch(() => new Set<number>()),
     ])
-      .then(([movieData, videosData, creditsData, providersData]) => {
+      .then(([movieData, videosData, creditsData, providersData, watchedSet]) => {
         if (cancelled) return;
         setMovie(movieData);
         setTrailer(pickTrailer(videosData.results));
         setCast(creditsData.cast.slice(0, 6));
         setProviders(providersData.results[userRegion] ?? null);
+        setWatched(watchedSet.has(Number(id)));
       })
       .catch((err: Error) => {
         if (cancelled) return;
@@ -97,11 +104,36 @@ export default function MovieDetailScreen() {
     };
   }, [id]);
 
-  const onToggleWatched = () => {
+  const onToggleWatched = async () => {
+    if (!movie) return;
     Haptics.impactAsync(
       watched ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Heavy,
     );
-    setWatched((w) => !w);
+
+    // Optimistic flip
+    const wasWatched = watched;
+    setWatched(!wasWatched);
+
+    try {
+      if (wasWatched) {
+        await unmarkWatched(movie.id);
+      } else {
+        await markWatched({
+          tmdb_id: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path,
+          backdrop_path: movie.backdrop_path,
+          release_year: movie.release_date
+            ? parseInt(movie.release_date.slice(0, 4), 10)
+            : null,
+          vote_average: Number(movie.vote_average.toFixed(1)),
+        });
+      }
+    } catch (err) {
+      // Revert
+      setWatched(wasWatched);
+      console.warn(`[movie] toggle watched failed: ${(err as Error).message}`);
+    }
   };
 
   const onPlayTrailer = () => {

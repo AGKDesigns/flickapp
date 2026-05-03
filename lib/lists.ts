@@ -129,6 +129,58 @@ export async function removeListFromUser(listId: string): Promise<void> {
   if (error) throw new Error(`removeListFromUser: ${error.message}`);
 }
 
+// =========================================================================
+// Watched
+// =========================================================================
+export type MarkWatchedInput = {
+  tmdb_id: number;
+  title: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  release_year: number | null;
+  vote_average: number | null;
+};
+
+export async function markWatched(input: MarkWatchedInput): Promise<void> {
+  const { error } = await supabase.rpc("mark_movie_watched", {
+    p_tmdb_id: input.tmdb_id,
+    p_title: input.title,
+    p_poster_path: input.poster_path,
+    p_backdrop_path: input.backdrop_path,
+    p_release_year: input.release_year,
+    p_vote_average: input.vote_average,
+  });
+  if (error) throw new Error(`markWatched: ${error.message}`);
+}
+
+export async function unmarkWatched(tmdbId: number): Promise<void> {
+  const { error } = await supabase.rpc("unmark_movie_watched", {
+    p_tmdb_id: tmdbId,
+  });
+  if (error) throw new Error(`unmarkWatched: ${error.message}`);
+}
+
+export async function fetchWatchedIds(movieIds?: number[]): Promise<Set<number>> {
+  let q = supabase.from("watch_events").select("movie_id");
+  if (movieIds && movieIds.length > 0) {
+    q = q.in("movie_id", movieIds);
+  }
+  const { data, error } = await q.returns<{ movie_id: number }[]>();
+  if (error) throw new Error(`fetchWatchedIds: ${error.message}`);
+  return new Set((data ?? []).map((r) => r.movie_id));
+}
+
+export async function fetchUserListProgress(): Promise<Map<string, number>> {
+  const { data, error } = await supabase.rpc("user_list_progress");
+  if (error) throw new Error(`fetchUserListProgress: ${error.message}`);
+  const rows = (data ?? []) as { list_id: string; watched_count: number }[];
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    map.set(row.list_id, Number(row.watched_count));
+  }
+  return map;
+}
+
 export async function fetchCuratedLists(): Promise<CuratedListSummary[]> {
   const { data, error } = await supabase
     .from("lists")

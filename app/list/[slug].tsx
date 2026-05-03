@@ -6,12 +6,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { GlassCard } from "@/components/glass-card";
 import { MovieCard } from "@/components/movie-card";
-import { fetchCuratedListBySlug, type CuratedListWithMovies } from "@/lib/lists";
+import {
+  fetchCuratedListBySlug,
+  fetchWatchedIds,
+  type CuratedListWithMovies,
+} from "@/lib/lists";
 
 export default function ListDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
 
   const [list, setList] = useState<CuratedListWithMovies | null>(null);
+  const [watchedIds, setWatchedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +28,21 @@ export default function ListDetailScreen() {
     setError(null);
 
     fetchCuratedListBySlug(slug)
-      .then((data) => {
+      .then(async (data) => {
         if (cancelled) return;
         if (!data) {
           setError(`No list found for "${slug}"`);
-        } else {
-          setList(data);
+          return;
+        }
+        setList(data);
+        const ids = data.movies.map((m) => m.tmdb_id);
+        if (ids.length > 0) {
+          try {
+            const watched = await fetchWatchedIds(ids);
+            if (!cancelled) setWatchedIds(watched);
+          } catch {
+            // non-fatal — list still renders, just without watched dims
+          }
         }
       })
       .catch((err: Error) => {
@@ -44,6 +58,10 @@ export default function ListDetailScreen() {
       cancelled = true;
     };
   }, [slug]);
+
+  const watchedCount = list
+    ? list.movies.filter((m) => watchedIds.has(m.tmdb_id)).length
+    : 0;
 
   return (
     <View className="flex-1 bg-night-950">
@@ -117,7 +135,7 @@ export default function ListDetailScreen() {
             >
               {list.total === 0
                 ? "Coming soon"
-                : `0 of ${list.total} watched`}
+                : `${watchedCount} of ${list.total} watched`}
             </Text>
           ) : null}
           {list?.description ? (
@@ -206,6 +224,7 @@ export default function ListDetailScreen() {
                     title={movie.title}
                     posterPath={movie.poster_path}
                     voteAverage={movie.vote_average}
+                    watched={watchedIds.has(movie.tmdb_id)}
                     onPress={() =>
                       router.push({
                         pathname: "/movie/[id]",

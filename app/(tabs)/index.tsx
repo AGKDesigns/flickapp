@@ -7,10 +7,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { GlassCard } from "@/components/glass-card";
 import { ListCard } from "@/components/list-card";
-import { fetchUserLists, type CuratedListSummary } from "@/lib/lists";
+import {
+  fetchUserListProgress,
+  fetchUserLists,
+  type CuratedListSummary,
+} from "@/lib/lists";
 
 export default function ListsScreen() {
   const [lists, setLists] = useState<CuratedListSummary[]>([]);
+  const [progress, setProgress] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,10 +24,14 @@ export default function ListsScreen() {
       let cancelled = false;
       setError(null);
 
-      fetchUserLists()
-        .then((data) => {
+      Promise.all([
+        fetchUserLists(),
+        fetchUserListProgress().catch(() => new Map<string, number>()),
+      ])
+        .then(([data, prog]) => {
           if (cancelled) return;
           setLists(data);
+          setProgress(prog);
         })
         .catch((err: Error) => {
           if (cancelled) return;
@@ -211,7 +220,7 @@ export default function ListsScreen() {
                 key={list.id}
                 title={list.title}
                 coverUrl={list.cover_url}
-                watched={0}
+                watched={progress.get(list.id) ?? 0}
                 total={list.total}
                 onPress={() =>
                   router.push({
