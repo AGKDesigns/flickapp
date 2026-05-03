@@ -14,9 +14,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import YoutubePlayer from "react-native-youtube-iframe";
 
 import { GlassCard } from "@/components/glass-card";
+import { TrailerPlayer } from "@/components/trailer-player";
 import {
   fetchWatchedIds,
   markWatched,
@@ -448,14 +448,11 @@ export default function MovieDetailScreen() {
                 shadowOffset: { width: 0, height: 6 },
               }}
             >
-              <YoutubePlayer
+              <TrailerPlayer
                 videoId={trailer.key}
                 height={trailerHeight}
                 width={trailerWidth}
-                play
-                onChangeState={(state: string) => {
-                  if (state === "ended") setTrailerPlaying(false);
-                }}
+                onEnd={() => setTrailerPlaying(false)}
               />
             </View>
           ) : (
