@@ -1,42 +1,43 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { GlassCard } from "@/components/glass-card";
 import { ListCard } from "@/components/list-card";
-import { fetchCuratedLists, type CuratedListSummary } from "@/lib/lists";
+import { fetchUserLists, type CuratedListSummary } from "@/lib/lists";
 
 export default function ListsScreen() {
   const [lists, setLists] = useState<CuratedListSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setError(null);
 
-    fetchCuratedLists()
-      .then((data) => {
-        if (cancelled) return;
-        setLists(data);
-      })
-      .catch((err: Error) => {
-        if (cancelled) return;
-        setError(err.message);
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
+      fetchUserLists()
+        .then((data) => {
+          if (cancelled) return;
+          setLists(data);
+        })
+        .catch((err: Error) => {
+          if (cancelled) return;
+          setError(err.message);
+        })
+        .finally(() => {
+          if (cancelled) return;
+          setLoading(false);
+        });
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   return (
     <View className="flex-1 bg-night-950">
@@ -120,29 +121,90 @@ export default function ListsScreen() {
               </Text>
             </View>
           ) : error ? (
-            <GlassCard glow="magenta" className="mx-5 p-5">
-              <Text
-                style={{
-                  fontFamily: "Inter_600SemiBold",
-                  fontSize: 12,
-                  letterSpacing: 1.5,
-                  color: "#ff5fa8",
-                }}
-              >
-                ERROR
-              </Text>
-              <Text
-                style={{
-                  fontFamily: "Inter_400Regular",
-                  fontSize: 14,
-                  lineHeight: 20,
-                  color: "rgba(245,241,255,0.85)",
-                  marginTop: 6,
-                }}
-              >
-                {error}
-              </Text>
-            </GlassCard>
+            <View className="mx-5">
+              <GlassCard glow="magenta" className="p-5">
+                <Text
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                    color: "#ff5fa8",
+                  }}
+                >
+                  ERROR
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 14,
+                    lineHeight: 20,
+                    color: "rgba(245,241,255,0.85)",
+                    marginTop: 6,
+                  }}
+                >
+                  {error}
+                </Text>
+              </GlassCard>
+            </View>
+          ) : lists.length === 0 ? (
+            <View className="mx-5">
+              <GlassCard glow="cyan" className="p-6">
+                <Text
+                  style={{
+                    fontFamily: "Inter_600SemiBold",
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                    color: "#5cf0ff",
+                  }}
+                >
+                  NO LISTS YET
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Orbitron_700Bold",
+                    fontSize: 22,
+                    lineHeight: 28,
+                    letterSpacing: 0.3,
+                    color: "#f5f1ff",
+                    marginTop: 6,
+                  }}
+                >
+                  Find your first list
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "Inter_400Regular",
+                    fontSize: 14,
+                    lineHeight: 20,
+                    color: "rgba(245,241,255,0.7)",
+                    marginTop: 8,
+                  }}
+                >
+                  Browse the Discover tab and add curated lists to start scratching off
+                  movies you&apos;ve seen.
+                </Text>
+                <Pressable
+                  onPress={() => router.push("/explore")}
+                  className="mt-5 items-center rounded-card py-3"
+                  style={{
+                    backgroundColor: "rgba(0,229,255,0.18)",
+                    borderWidth: 0.5,
+                    borderColor: "rgba(0,229,255,0.45)",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: "Inter_600SemiBold",
+                      fontSize: 14,
+                      color: "#5cf0ff",
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    Open Discover
+                  </Text>
+                </Pressable>
+              </GlassCard>
+            </View>
           ) : (
             lists.map((list) => (
               <ListCard
