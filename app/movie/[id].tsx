@@ -6,6 +6,7 @@ import * as Localization from "expo-localization";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Linking,
   Pressable,
   ScrollView,
@@ -13,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import YoutubePlayer from "react-native-youtube-iframe";
 
 import { GlassCard } from "@/components/glass-card";
 import {
@@ -59,6 +61,7 @@ export default function MovieDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [watched, setWatched] = useState(false);
+  const [trailerPlaying, setTrailerPlaying] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -138,8 +141,16 @@ export default function MovieDetailScreen() {
 
   const onPlayTrailer = () => {
     if (!trailer) return;
+    setTrailerPlaying(true);
+  };
+
+  const onOpenTrailerExternal = () => {
+    if (!trailer) return;
     Linking.openURL(`https://www.youtube.com/watch?v=${trailer.key}`);
   };
+
+  const trailerWidth = Dimensions.get("window").width - 40; // -20 padding * 2
+  const trailerHeight = Math.round((trailerWidth * 9) / 16);
 
   if (loading) {
     return (
@@ -406,47 +417,89 @@ export default function MovieDetailScreen() {
 
         {/* Trailer */}
         <View className="mt-9 px-5">
-          <SectionLabel accent="cyan">Trailer</SectionLabel>
-          <Pressable
-            onPress={onPlayTrailer}
-            disabled={!trailer}
-            className="mt-3 h-48 items-center justify-center overflow-hidden rounded-sheet"
-            style={{
-              borderWidth: 0.5,
-              borderColor: "rgba(255,255,255,0.10)",
-              backgroundColor: "rgba(255,255,255,0.04)",
-            }}
-          >
-            <LinearGradient
-              colors={["rgba(0,229,255,0.18)", "rgba(255,46,147,0.18)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ position: "absolute", inset: 0 }}
-            />
+          <View className="flex-row items-baseline justify-between">
+            <SectionLabel accent="cyan">Trailer</SectionLabel>
+            {trailer && trailerPlaying ? (
+              <Pressable hitSlop={8} onPress={onOpenTrailerExternal}>
+                <Text
+                  style={{
+                    fontFamily: "Inter_500Medium",
+                    fontSize: 12,
+                    color: "rgba(245,241,255,0.55)",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  Open in YouTube ↗
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {trailer && trailerPlaying ? (
             <View
-              className="h-16 w-16 items-center justify-center rounded-full"
+              className="mt-3 overflow-hidden rounded-sheet"
               style={{
-                backgroundColor: "rgba(5,5,6,0.7)",
-                borderWidth: 1,
-                borderColor: "rgba(0,229,255,0.6)",
+                borderWidth: 0.5,
+                borderColor: "rgba(0,229,255,0.35)",
+                backgroundColor: "#000",
+                shadowColor: "#00e5ff",
+                shadowOpacity: 0.3,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 6 },
               }}
             >
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 22, color: "#5cf0ff" }}>▶</Text>
+              <YoutubePlayer
+                videoId={trailer.key}
+                height={trailerHeight}
+                width={trailerWidth}
+                play
+                onChangeState={(state: string) => {
+                  if (state === "ended") setTrailerPlaying(false);
+                }}
+              />
             </View>
-            <Text
+          ) : (
+            <Pressable
+              onPress={onPlayTrailer}
+              disabled={!trailer}
+              className="mt-3 h-48 items-center justify-center overflow-hidden rounded-sheet"
               style={{
-                fontFamily: "Inter_500Medium",
-                fontSize: 13,
-                color: "rgba(245,241,255,0.65)",
-                marginTop: 12,
-                paddingHorizontal: 24,
-                textAlign: "center",
+                borderWidth: 0.5,
+                borderColor: "rgba(255,255,255,0.10)",
+                backgroundColor: "rgba(255,255,255,0.04)",
               }}
-              numberOfLines={1}
             >
-              {trailer ? trailer.name : "No trailer available"}
-            </Text>
-          </Pressable>
+              <LinearGradient
+                colors={["rgba(0,229,255,0.18)", "rgba(255,46,147,0.18)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ position: "absolute", inset: 0 }}
+              />
+              <View
+                className="h-16 w-16 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: "rgba(5,5,6,0.7)",
+                  borderWidth: 1,
+                  borderColor: "rgba(0,229,255,0.6)",
+                }}
+              >
+                <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 22, color: "#5cf0ff" }}>▶</Text>
+              </View>
+              <Text
+                style={{
+                  fontFamily: "Inter_500Medium",
+                  fontSize: 13,
+                  color: "rgba(245,241,255,0.65)",
+                  marginTop: 12,
+                  paddingHorizontal: 24,
+                  textAlign: "center",
+                }}
+                numberOfLines={1}
+              >
+                {trailer ? trailer.name : "No trailer available"}
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Where to Watch */}
