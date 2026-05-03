@@ -9,29 +9,36 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarButton: HapticTab,
-        tabBarActiveTintColor: "#ffffff",
-        tabBarInactiveTintColor: "#6b7280",
+        tabBarActiveTintColor: "#ff2e93",
+        tabBarInactiveTintColor: "#6b5c8a",
+        tabBarLabelStyle: {
+          fontFamily: "JetBrainsMono_700Bold",
+          fontSize: 10,
+          letterSpacing: 1.5,
+          marginTop: 2,
+        },
         tabBarStyle: {
-          backgroundColor: "#000000",
-          borderTopColor: "#1f1f1f",
+          backgroundColor: "#070014",
+          borderTopColor: "rgba(255, 46, 147, 0.25)",
+          borderTopWidth: 1,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Lists",
+          title: "LISTS",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="list.bullet" color={color} />
+            <IconSymbol size={24} name="list.bullet" color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: "Discover",
+          title: "DISCOVER",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={26} name="sparkles" color={color} />
+            <IconSymbol size={24} name="sparkles" color={color} />
           ),
         }}
       />
