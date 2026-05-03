@@ -104,7 +104,7 @@ export default function ListsScreen() {
               watched={list.watched}
               total={list.total}
               onPress={() =>
-                router.push({ pathname: "/movie/[id]", params: { id: list.id } })
+                router.push({ pathname: "/list/[id]", params: { id: list.id } })
               }
             />
           ))}

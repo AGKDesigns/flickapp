@@ -2,26 +2,69 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const MOCK_MOVIE = {
-  title: "PARASITE",
-  year: 2019,
-  runtime: 132,
-  director: "Bong Joon-ho",
-  rating: 8.5,
-  poster: require("@/assets/img/parasite.jpg"),
-  backdrop: require("@/assets/img/parasite.jpg"),
-  synopsis:
-    "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",
-  cast: ["Song Kang-ho", "Lee Sun-kyun", "Cho Yeo-jeong", "Choi Woo-shik"],
-};
+import {
+  backdropUrl,
+  isTMDBConfigured,
+  pickTrailer,
+  posterUrl,
+  tmdb,
+  type CastMember,
+  type MovieDetail,
+  type Video,
+} from "@/lib/tmdb";
 
 export default function MovieDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [movie, setMovie] = useState<MovieDetail | null>(null);
+  const [trailer, setTrailer] = useState<Video | null>(null);
+  const [cast, setCast] = useState<CastMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [watched, setWatched] = useState(false);
+
+  useEffect(() => {
+    if (!id) return;
+    if (!isTMDBConfigured) {
+      setLoading(false);
+      setError("TMDB not configured. Add EXPO_PUBLIC_TMDB_READ_TOKEN to .env and restart Metro.");
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    Promise.all([tmdb.movie(id), tmdb.videos(id), tmdb.credits(id)])
+      .then(([movieData, videosData, creditsData]) => {
+        if (cancelled) return;
+        setMovie(movieData);
+        setTrailer(pickTrailer(videosData.results));
+        setCast(creditsData.cast.slice(0, 6));
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        setError(err.message);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const onToggleWatched = () => {
     Haptics.impactAsync(
@@ -32,6 +75,67 @@ export default function MovieDetailScreen() {
     setWatched((w) => !w);
   };
 
+  const onPlayTrailer = () => {
+    if (!trailer) return;
+    const url = `https://www.youtube.com/watch?v=${trailer.key}`;
+    Linking.openURL(url);
+  };
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-night-950">
+        <ActivityIndicator color="#ff2e93" />
+        <Text
+          className="mt-4 text-ink-400"
+          style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 11, letterSpacing: 2 }}
+        >
+          LOADING TRANSMISSION...
+        </Text>
+      </View>
+    );
+  }
+
+  if (error || !movie) {
+    return (
+      <View className="flex-1 bg-night-950">
+        <SafeAreaView edges={["top"]} className="flex-1">
+          <View className="px-5 pt-2">
+            <Pressable
+              hitSlop={12}
+              onPress={() => router.back()}
+              className="h-10 w-10 items-center justify-center rounded-full border border-magenta-500/40 bg-night-950/60"
+            >
+              <Text
+                className="text-magenta-400"
+                style={{ fontFamily: "Orbitron_700Bold", fontSize: 16 }}
+              >
+                ←
+              </Text>
+            </Pressable>
+          </View>
+          <View className="m-5 rounded-2xl border border-magenta-500/40 bg-night-800 p-5">
+            <Text
+              className="text-magenta-400"
+              style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 11, letterSpacing: 2 }}
+            >
+              ERROR
+            </Text>
+            <Text
+              className="mt-2 text-ink-200"
+              style={{ fontFamily: "Inter_400Regular", fontSize: 14, lineHeight: 20 }}
+            >
+              {error ?? "Movie not found"}
+            </Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
+  const year = movie.release_date ? new Date(movie.release_date).getFullYear() : "";
+  const backdropUri = backdropUrl(movie.backdrop_path);
+  const posterUri = posterUrl(movie.poster_path, "w342");
+
   return (
     <View className="flex-1 bg-night-950">
       <ScrollView
@@ -40,17 +144,16 @@ export default function MovieDetailScreen() {
       >
         {/* Backdrop */}
         <View style={{ height: 420 }}>
-          <Image
-            source={MOCK_MOVIE.backdrop}
-            contentFit="cover"
-            style={{ position: "absolute", inset: 0 }}
-          />
+          {backdropUri ? (
+            <Image
+              source={{ uri: backdropUri }}
+              contentFit="cover"
+              style={{ position: "absolute", inset: 0 }}
+              transition={250}
+            />
+          ) : null}
           <LinearGradient
-            colors={[
-              "rgba(7, 0, 20, 0.0)",
-              "rgba(13, 4, 33, 0.6)",
-              "rgba(7, 0, 20, 1)",
-            ]}
+            colors={["rgba(7, 0, 20, 0.0)", "rgba(13, 4, 33, 0.6)", "rgba(7, 0, 20, 1)"]}
             locations={[0, 0.55, 1]}
             style={{ position: "absolute", inset: 0 }}
           />
@@ -70,7 +173,7 @@ export default function MovieDetailScreen() {
           </SafeAreaView>
         </View>
 
-        {/* Title block, lifted over backdrop */}
+        {/* Title block */}
         <View className="-mt-32 px-5">
           <View className="flex-row items-end gap-4">
             <View
@@ -82,52 +185,44 @@ export default function MovieDetailScreen() {
                 shadowOffset: { width: 0, height: 8 },
               }}
             >
-              <Image
-                source={MOCK_MOVIE.poster}
-                contentFit="cover"
-                style={{ flex: 1 }}
-              />
+              {posterUri ? (
+                <Image
+                  source={{ uri: posterUri }}
+                  contentFit="cover"
+                  style={{ flex: 1 }}
+                  transition={200}
+                />
+              ) : null}
             </View>
             <View className="flex-1 pb-1">
               <Text
                 className="text-cyan-400"
-                style={{
-                  fontFamily: "JetBrainsMono_700Bold",
-                  fontSize: 11,
-                  letterSpacing: 2,
-                }}
+                style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 11, letterSpacing: 2 }}
               >
-                {MOCK_MOVIE.year} · {MOCK_MOVIE.runtime}MIN · ★{" "}
-                {MOCK_MOVIE.rating}
+                {year}
+                {movie.runtime ? ` · ${movie.runtime}MIN` : ""} · ★ {movie.vote_average.toFixed(1)}
               </Text>
               <Text
                 className="mt-1 text-ink-50"
-                style={{
-                  fontFamily: "Orbitron_900Black",
-                  fontSize: 28,
-                  letterSpacing: 1,
-                }}
-                numberOfLines={2}
+                style={{ fontFamily: "Orbitron_900Black", fontSize: 26, letterSpacing: 1 }}
+                numberOfLines={3}
               >
-                {MOCK_MOVIE.title}
+                {movie.title.toUpperCase()}
               </Text>
-              <Text
-                className="mt-1 text-ink-400"
-                style={{ fontFamily: "Inter_500Medium", fontSize: 13 }}
-              >
-                Dir. {MOCK_MOVIE.director}
-              </Text>
-              <Text
-                className="mt-1 text-ink-600"
-                style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 10 }}
-              >
-                ID: {id}
-              </Text>
+              {movie.tagline ? (
+                <Text
+                  className="mt-1 text-ink-400"
+                  style={{ fontFamily: "Inter_500Medium", fontSize: 13, fontStyle: "italic" }}
+                  numberOfLines={2}
+                >
+                  &ldquo;{movie.tagline}&rdquo;
+                </Text>
+              ) : null}
             </View>
           </View>
         </View>
 
-        {/* Watched toggle — the star of the show */}
+        {/* Watched toggle */}
         <View className="mt-6 px-5">
           <Pressable
             onPress={onToggleWatched}
@@ -140,18 +235,12 @@ export default function MovieDetailScreen() {
               shadowOffset: { width: 0, height: 6 },
             })}
             className={`h-14 items-center justify-center overflow-hidden rounded-2xl border-2 ${
-              watched
-                ? "border-cyan-500 bg-cyan-500/10"
-                : "border-magenta-500 bg-magenta-500/10"
+              watched ? "border-cyan-500 bg-cyan-500/10" : "border-magenta-500 bg-magenta-500/10"
             }`}
           >
             <Text
               className={watched ? "text-cyan-400" : "text-magenta-400"}
-              style={{
-                fontFamily: "Orbitron_900Black",
-                fontSize: 14,
-                letterSpacing: 3,
-              }}
+              style={{ fontFamily: "Orbitron_900Black", fontSize: 14, letterSpacing: 3 }}
             >
               {watched ? "✓  WATCHED" : "MARK AS WATCHED"}
             </Text>
@@ -161,11 +250,7 @@ export default function MovieDetailScreen() {
             <Pressable className="flex-1 items-center rounded-xl border border-ink-600/50 bg-night-800 py-3">
               <Text
                 className="text-ink-200"
-                style={{
-                  fontFamily: "Orbitron_700Bold",
-                  fontSize: 11,
-                  letterSpacing: 2,
-                }}
+                style={{ fontFamily: "Orbitron_700Bold", fontSize: 11, letterSpacing: 2 }}
               >
                 + ADD TO LIST
               </Text>
@@ -173,11 +258,7 @@ export default function MovieDetailScreen() {
             <Pressable className="flex-1 items-center rounded-xl border border-ink-600/50 bg-night-800 py-3">
               <Text
                 className="text-ink-200"
-                style={{
-                  fontFamily: "Orbitron_700Bold",
-                  fontSize: 11,
-                  letterSpacing: 2,
-                }}
+                style={{ fontFamily: "Orbitron_700Bold", fontSize: 11, letterSpacing: 2 }}
               >
                 ★ RATE
               </Text>
@@ -189,11 +270,7 @@ export default function MovieDetailScreen() {
         <View className="mt-8 px-5">
           <Text
             className="text-magenta-400"
-            style={{
-              fontFamily: "JetBrainsMono_700Bold",
-              fontSize: 11,
-              letterSpacing: 2,
-            }}
+            style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 11, letterSpacing: 2 }}
           >
             // SYNOPSIS
           </Text>
@@ -201,23 +278,38 @@ export default function MovieDetailScreen() {
             className="mt-2 text-ink-200"
             style={{ fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22 }}
           >
-            {MOCK_MOVIE.synopsis}
+            {movie.overview || "No synopsis available."}
           </Text>
+          {movie.genres.length > 0 ? (
+            <View className="mt-3 flex-row flex-wrap gap-2">
+              {movie.genres.map((g) => (
+                <View
+                  key={g.id}
+                  className="rounded-full border border-magenta-500/40 bg-night-800/60 px-3 py-1"
+                >
+                  <Text
+                    className="text-ink-200"
+                    style={{ fontFamily: "Inter_500Medium", fontSize: 11 }}
+                  >
+                    {g.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
-        {/* Trailer placeholder */}
+        {/* Trailer */}
         <View className="mt-8 px-5">
           <Text
             className="text-cyan-400"
-            style={{
-              fontFamily: "JetBrainsMono_700Bold",
-              fontSize: 11,
-              letterSpacing: 2,
-            }}
+            style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 11, letterSpacing: 2 }}
           >
             // TRAILER
           </Text>
-          <View
+          <Pressable
+            onPress={onPlayTrailer}
+            disabled={!trailer}
             className="mt-2 h-48 items-center justify-center overflow-hidden rounded-2xl border border-cyan-500/40 bg-night-800"
           >
             <LinearGradient
@@ -237,40 +329,52 @@ export default function MovieDetailScreen() {
             <Text
               className="mt-3 text-ink-400"
               style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 11, letterSpacing: 1.5 }}
+              numberOfLines={1}
             >
-              YOUTUBE EMBED — TBD
+              {trailer ? trailer.name.toUpperCase() : "NO TRAILER AVAILABLE"}
             </Text>
-          </View>
+          </Pressable>
         </View>
 
         {/* Cast */}
-        <View className="mt-8 px-5">
-          <Text
-            className="text-magenta-400"
-            style={{
-              fontFamily: "JetBrainsMono_700Bold",
-              fontSize: 11,
-              letterSpacing: 2,
-            }}
-          >
-            // CAST
-          </Text>
-          <View className="mt-3 flex-row flex-wrap gap-2">
-            {MOCK_MOVIE.cast.map((name) => (
-              <View
-                key={name}
-                className="rounded-full border border-ink-600/40 bg-night-800/60 px-3 py-1.5"
-              >
-                <Text
-                  className="text-ink-200"
-                  style={{ fontFamily: "Inter_500Medium", fontSize: 12 }}
+        {cast.length > 0 ? (
+          <View className="mt-8 px-5">
+            <Text
+              className="text-magenta-400"
+              style={{ fontFamily: "JetBrainsMono_700Bold", fontSize: 11, letterSpacing: 2 }}
+            >
+              // CAST
+            </Text>
+            <View className="mt-3 flex-row flex-wrap gap-2">
+              {cast.map((member) => (
+                <View
+                  key={member.id}
+                  className="rounded-full border border-ink-600/40 bg-night-800/60 px-3 py-1.5"
                 >
-                  {name}
-                </Text>
-              </View>
-            ))}
+                  <Text
+                    className="text-ink-200"
+                    style={{ fontFamily: "Inter_500Medium", fontSize: 12 }}
+                  >
+                    {member.name}
+                  </Text>
+                  <Text
+                    className="text-ink-600"
+                    style={{ fontFamily: "Inter_400Regular", fontSize: 10 }}
+                  >
+                    as {member.character}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        ) : null}
+
+        <Text
+          className="mt-10 text-center text-ink-600"
+          style={{ fontFamily: "JetBrainsMono_400Regular", fontSize: 10, letterSpacing: 1.5 }}
+        >
+          DATA BY TMDB
+        </Text>
       </ScrollView>
     </View>
   );
